@@ -16,6 +16,8 @@ namespace dsproject
 
             display.Clear();
 
+            Console.ForegroundColor = ConsoleColor.Red;
+
             // Test drawing of some cards
             var oneCard = new[]
             {
