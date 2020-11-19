@@ -6,17 +6,17 @@ namespace dsproject
     {
         private static void Main(string[] args)
         {
+            Console.CursorVisible = false;
+
             var display = new Display();
 
             display.WriteString("Press any key to continue!", 49, 0);
-
+            
             display.Update();
-
+            
             Console.ReadKey(true);
-
+            
             display.Clear();
-
-            Console.ForegroundColor = ConsoleColor.Red;
 
             // Test drawing of some cards
             var oneCard = new[]
@@ -61,9 +61,9 @@ namespace dsproject
                 new[] { '|', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '|' },
             };
 
-            display.InsertArray(oneCard, 10, 5);
-            display.InsertArray(twoCard, 10, 18);
-            display.InsertArray(threeCard, 10, 31);
+            display.InsertArray(oneCard, 10, 5, ConsoleColor.Red);
+            display.InsertArray(twoCard, 10, 18, ConsoleColor.Green);
+            display.InsertArray(threeCard, 10, 31, ConsoleColor.Blue);
 
             display.Update();
 
