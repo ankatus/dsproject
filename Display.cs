@@ -144,7 +144,7 @@ namespace dsproject
 
         public void Update()
         {
-            // To avoid drawing one character at a time (slow), split _rows into chunks of continuous color and draw those
+            // To avoid drawing one character at a time (slow), split _characters into chunks of continuous color and draw those
             var rows = new List<List<(ConsoleColor color, List<char> content)>>();
 
             for (var rowIndex = 0; rowIndex < DISPLAY_HEIGHT; rowIndex++)
