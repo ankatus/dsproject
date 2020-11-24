@@ -23,15 +23,15 @@ namespace dsproject
             var view = new CardsView(display);
             var random = new Random();
 
-            var cardNumber = random.Next(0, 9);
-            var cardColor = (CardColor)random.Next(0, 3);
+            var cardNumber = random.Next(0, 10);
+            var cardColor = (CardColor)random.Next(0, 4);
 
             view.TopCard = new UnoCard(CardType.Number, cardColor, cardNumber);
 
             for (var i = 0; i < 25; i++)
             {
-                cardNumber = random.Next(0, 9);
-                cardColor = (CardColor)random.Next(0, 3);
+                cardNumber = random.Next(0, 10);
+                cardColor = (CardColor)random.Next(0, 4);
                 view.Hand.Add(new UnoCard(CardType.Number, cardColor, cardNumber));
             }
 
