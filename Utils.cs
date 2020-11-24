@@ -16,5 +16,17 @@ namespace dsproject
 
             return possibleColors[randomGen.Next(0, possibleColors.Length)];
         }
+
+        internal static ConsoleColor CardToConsoleColor(CardColor cardColor)
+        {
+            return cardColor switch
+            {
+                CardColor.Red => ConsoleColor.Red,
+                CardColor.Yellow => ConsoleColor.Yellow,
+                CardColor.Green => ConsoleColor.Green,
+                CardColor.Blue => ConsoleColor.Blue,
+                _ => throw new ArgumentOutOfRangeException(nameof(cardColor), cardColor, null)
+            };
+        }
     }
 }
