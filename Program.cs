@@ -72,6 +72,13 @@ namespace dsproject
             display.Update();
 
             Console.ReadKey(true);
+
+
+
+            //NetworkCommunication nc = new NetworkCommunication();
+
+            //Thread waitForPlayersThread = new Thread(nc.WaitForPlayersToJoin);
+            //waitForPlayersThread.Start();
         }
     }
 }
