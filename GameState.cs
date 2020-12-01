@@ -13,6 +13,7 @@ namespace dsproject
         private UnoCard _playedCard;
         private readonly List<UnoCard> _drawnCards;
         private int _seed;
+        private bool _playAnyColor;
 
         public List<PlayerInfo> Players { get; }
         public PlayerInfo LocalPlayer { get; set; }
@@ -32,7 +33,7 @@ namespace dsproject
         public StateUpdateInfo Update(TurnInfo previousTurn)
         {
             // Some validation
-            if (GameStatus is not GameStatus.Started) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Game not started" };
+            if (GameStatus is GameStatus.NotStarted) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Game not started" };
             if (TurnStatus is not TurnStatus.Waiting) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Still processing local turn" };
             if (previousTurn.PlayerID != _nextTurnPlayerId) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Wrong player ID" };
             if (previousTurn.DrawnCards is null) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Invalid data" };
@@ -55,6 +56,9 @@ namespace dsproject
             else
             {
                 // Not our turn
+
+                // Still check if reverse card was played
+                if (previousTurn.PlayedCard?.Type is CardType.Reverse) ReverseTurnOrder();
                 _nextTurnPlayerId = previousTurn.NextTurnPlayerID;
             }
 
@@ -104,6 +108,7 @@ namespace dsproject
 
             if (LocalPlayer.Dealer)
             {
+                // Let UI know first card can be played
                 TurnStatus = TurnStatus.Ongoing;
             }
 
@@ -255,7 +260,7 @@ namespace dsproject
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
-                
+
                 _pile.Push(card);
                 _drawnCards.Add(card);
                 _playedCard = card;
@@ -274,43 +279,85 @@ namespace dsproject
 
             var card = previousTurn.PlayedCard;
 
-            // Check for possible card effects
-            switch (card.Type)
+            // Check if previous turn was dealer playing the first card
+            var previousPlayer = GetPlayer(previousTurn.PlayerID);
+            if (previousPlayer is null) throw new InvalidOperationException("Invalid player id");
+            if (previousPlayer.Dealer && _turnNumber == 0)
             {
-                case CardType.Wild:
-                    // No effects
-                    break;
-                case CardType.WildDrawFour:
-                    // We draw four cards and miss our turn
-                    for (var i = 0; i < 4; i++)
-                    {
-                        _drawnCards.Add(DrawCard());
-                    }
-                    _nextTurnPlayerId = GetNextPlayerId();
-                    TurnStatus = TurnStatus.Ready;
-                    break;
-                case CardType.Skip:
-                    // We miss our turn
-                    _nextTurnPlayerId = GetNextPlayerId();
-                    TurnStatus = TurnStatus.Ready;
-                    break;
-                case CardType.DrawTwo:
-                    // We draw two cards and miss our turn
-                    for (var i = 0; i < 2; i++)
-                    {
-                        _drawnCards.Add(DrawCard());
-                    }
-                    _nextTurnPlayerId = GetNextPlayerId();
-                    TurnStatus = TurnStatus.Ready;
-                    break;
-                case CardType.Reverse:
-                    // No effects, handled by client that plays the card
-                    break;
-                case CardType.Number:
-                    // No effects
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
+                switch (card.Type)
+                {
+                    case CardType.Wild:
+                        _playAnyColor = true;
+                        break;
+                    case CardType.WildDrawFour:
+                        // Shouldn't happen
+                        break;
+                    case CardType.Skip:
+                        // We miss our turn
+                        TurnStatus = TurnStatus.Ready;
+                        _nextTurnPlayerId = GetNextPlayerId();
+                        break;
+                    case CardType.DrawTwo:
+                        // We draw two cards and miss our turn
+                        for (var i = 0; i < 2; i++)
+                        {
+                            _drawnCards.Add(DrawCard());
+                        }
+                        _nextTurnPlayerId = GetNextPlayerId();
+                        TurnStatus = TurnStatus.Ready;
+                        break;
+                    case CardType.Reverse:
+                        // No effect here
+                        return;
+                    case CardType.Number:
+                        // No effect
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+            else
+            {
+                // Just a normal turn
+
+                // Check for possible card effects
+                switch (card.Type)
+                {
+                    case CardType.Wild:
+                        // No effects
+                        break;
+                    case CardType.WildDrawFour:
+                        // We draw four cards and miss our turn
+                        for (var i = 0; i < 4; i++)
+                        {
+                            _drawnCards.Add(DrawCard());
+                        }
+                        _nextTurnPlayerId = GetNextPlayerId();
+                        TurnStatus = TurnStatus.Ready;
+                        break;
+                    case CardType.Skip:
+                        // We miss our turn
+                        _nextTurnPlayerId = GetNextPlayerId();
+                        TurnStatus = TurnStatus.Ready;
+                        break;
+                    case CardType.DrawTwo:
+                        // We draw two cards and miss our turn
+                        for (var i = 0; i < 2; i++)
+                        {
+                            _drawnCards.Add(DrawCard());
+                        }
+                        _nextTurnPlayerId = GetNextPlayerId();
+                        TurnStatus = TurnStatus.Ready;
+                        break;
+                    case CardType.Reverse:
+                        ReverseTurnOrder();
+                        break;
+                    case CardType.Number:
+                        // No effects
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
             }
         }
 
@@ -334,6 +381,13 @@ namespace dsproject
             {
                 // Same symbol
                 if (card.Type == topCard.Type) return true;
+            }
+
+            // Effect of Wild as first discard
+            if (_playAnyColor)
+            {
+                _playAnyColor = false;
+                return true;
             }
 
             return false;
@@ -465,8 +519,16 @@ namespace dsproject
             Players.Reverse();
         }
 
+        private PlayerInfo GetPlayer(int playerId)
+        {
+            return Players.Single(player => player.PlayerID == playerId);
+        }
+
         private static void UpdatePlayerCards(PlayerInfo player, List<UnoCard> drawn, UnoCard played)
         {
+            // Add drawn cards to hand
+            player.Hand.AddRange(drawn);
+
             // Remove played card from hand
             for (var i = 0; i < player.Hand.Count; i++)
             {
@@ -475,9 +537,6 @@ namespace dsproject
                     player.Hand.RemoveAt(i);
                 }
             }
-
-            // Add drawn cards to hand
-            player.Hand.AddRange(drawn);
         }
     }
 
