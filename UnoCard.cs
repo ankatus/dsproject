@@ -21,6 +21,13 @@ namespace dsproject
             Number = number;
         }
 
+        public UnoCard(UnoCard source)
+        {
+            Type = source.Type;
+            Color = source.Color;
+            Number = source.Number;
+        }
+
         public char[][] GetGraphic()
         {
             return Type switch
@@ -34,6 +41,25 @@ namespace dsproject
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
+
+#pragma warning disable 659
+        public override bool Equals(object obj)
+#pragma warning restore 659
+        {
+            var other = obj as UnoCard;
+            if (other is null) return false;
+            if (other.Type != Type) return false;
+            if (Type == CardType.Number)
+            {
+                if (other.Color != Color) return false;
+                if (other.Number != Number) return false;
+            }
+
+            return true;
+        }
+
+        public static bool operator ==(UnoCard a, UnoCard b) => a is not null && a.Equals(b);
+        public static bool operator !=(UnoCard a, UnoCard b) => a is not null && !a.Equals(b);
     }
 
     internal enum CardType

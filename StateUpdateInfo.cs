@@ -2,6 +2,12 @@
 {
     internal class StateUpdateInfo
     {
-        public bool Error { get; set; }
+        public StateUpdateResult Result { get; set; }
+        public string ErrorString { get; set; }
+    }
+
+    internal enum StateUpdateResult
+    {
+        Ok, Error,
     }
 }
