@@ -6,7 +6,7 @@ namespace dsproject
     {
         public ConcurrentQueue<EventInfo> EventQueue { get; }
 
-        public LobbyInfo JoinGame(ConnectionInfo connection);
+        public LobbyInfo JoinGame(string name, int lobbySize);
         public void EndTurn();
         public void ExitGame();
     }
