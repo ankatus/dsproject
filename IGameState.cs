@@ -1,12 +1,14 @@
-﻿namespace dsproject
+﻿using System.Collections.Generic;
+
+namespace dsproject
 {
     internal interface IGameState
     {
-        public StateUpdateInfo Update(TurnInfo turn);
+        public StateUpdateInfo Update(TurnInfo previousTurn);
         public TurnInfo GetTurn();
-        public void Start();
+        public TurnInfo InitGame(List<PlayerInfo> players, PlayerInfo localPlayer, int seed);
         public UnoCard DrawCard();
-        public void PlayCard(UnoCard card);
+        public bool PlayCard(int cardIndex);
         public void Reset();
     }
 }
