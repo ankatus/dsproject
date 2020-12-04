@@ -31,7 +31,8 @@ namespace dsproject
 
         internal static IEnumerable<T> ShuffleList<T>(IEnumerable<T> shufflee, int seed)
         {
-            return shufflee.OrderBy(_ => new Random(seed).Next()).ToList();
+            var random = new Random(seed);
+            return shufflee.OrderBy(_ => random.Next()).ToList();
         }
     }
 }

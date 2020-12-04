@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text;
@@ -38,26 +39,28 @@ namespace dsproject
             Console.SetCursorPosition(prompt.Length, 0);
             var name = Console.ReadLine();
 
-            _display.Clear();
-            _display.WriteString("Select Interface:",0,0);
-            var rows = ShowInterfaces(1,0);
-            _display.Update();
-            Console.SetCursorPosition(0, rows);
-            var index = Console.ReadKey();
+            //_display.Clear();
+            //_display.WriteString("Select Interface:", 0, 0);
+            //var rows = ShowInterfaces(1, 0);
+            //_display.Update();
+            //Console.SetCursorPosition(0, rows);
+            //var index = Console.ReadKey(true);
 
             prompt = "Group size: ";
             _display.Clear();
             _display.WriteString(prompt, 0, 0);
             _display.Update();
+            Console.SetCursorPosition(prompt.Length, 0);
             var size = Console.ReadLine();
             //TODO check that size is interger
 
-            prompt = "Group address: ";
-            _display.Clear();
-            _display.WriteString(prompt, 0, 0);
-            _display.Update();
-            var answer = Console.ReadLine();
-            
+            //prompt = "Group address: ";
+            //_display.Clear();
+            //_display.WriteString(prompt, 0, 0);
+            //_display.Update();
+            //Console.SetCursorPosition(prompt.Length, 0);
+            //var answer = Console.ReadLine();
+
             _display.Clear();
             _display.WriteString("Joining game...", 0, 0);
             _display.Update();
@@ -72,10 +75,18 @@ namespace dsproject
         {
             while (true)
             {
+                _display.Clear();
+                UpdateCards();
+
                 // Get input
                 if (Console.KeyAvailable)
                 {
                     _input = Console.ReadKey(true).Key;
+                    Debug.WriteLine("Key pressed: " + _input.ToString());
+                }
+                else
+                {
+                    _input = null;
                 }
 
                 switch (_gameState.GameStatus)
@@ -89,37 +100,69 @@ namespace dsproject
                                 _waitingView.Draw();
                                 break;
                             case TurnStatus.Ongoing:
-                                if (_input is not null)
+                                if (_gameState.LocalPlayer.Dealer && _gameState.TurnNumber == 1)
                                 {
-                                    var pressed = (ConsoleKey)_input;
-                                    // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
-                                    switch (pressed)
+                                    if (WasKeyPressed(ConsoleKey.Spacebar))
                                     {
-                                        case ConsoleKey.LeftArrow:
-                                            _cardsView.DecreaseVisibleIndex();
-                                            break;
-                                        case ConsoleKey.RightArrow:
-                                            _cardsView.IncreaseVisibleIndex();
-                                            break;
-                                        case ConsoleKey.D1:
-                                        case ConsoleKey.D2:
-                                        case ConsoleKey.D3:
-                                        case ConsoleKey.D4:
-                                        case ConsoleKey.D5:
-                                            PlayCard(pressed);
-                                            break;
+                                        _gameState.PlayFirstCard();
+                                        Debug.WriteLine("Played first card");
+                                        continue;
                                     }
+                                    // Dealer's turn to play first card
+                                    _waitingView.Message = "You are the dealer! Press space to flip the first card,";
+                                    _waitingView.MessageColor = ConsoleColor.Yellow;
+                                    _waitingView.Draw();
+                                    break;
                                 }
 
-                                _cardsView.Draw();
+
+                                if (PlayableCards() == 0)
+                                {
+                                    if (WasKeyPressed(ConsoleKey.Spacebar))
+                                    {
+                                        _gameState.DrawCard();
+                                        Debug.WriteLine("Drew card when none was playable");
+                                        continue;
+                                    }
+
+                                    _waitingView.Message = "You can't play any cards, press space to draw new card";
+                                    _waitingView.MessageColor = ConsoleColor.Yellow;
+                                    _waitingView.Draw();                                  
+                                }
+                                else
+                                {
+                                    if (_input is not null)
+                                    {
+                                        var pressed = (ConsoleKey)_input;
+                                        // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
+                                        switch (pressed)
+                                        {
+                                            case ConsoleKey.LeftArrow:
+                                                _cardsView.DecreaseVisibleIndex();
+                                                break;
+                                            case ConsoleKey.RightArrow:
+                                                _cardsView.IncreaseVisibleIndex();
+                                                break;
+                                            case ConsoleKey.D1:
+                                            case ConsoleKey.D2:
+                                            case ConsoleKey.D3:
+                                            case ConsoleKey.D4:
+                                            case ConsoleKey.D5:
+                                                PlayCard(pressed);
+                                                break;
+                                        }
+                                    }
+
+                                    _cardsView.Draw();
+                                }
                                 break;
                             case TurnStatus.Ready:
-                                if (WasKeyPressed(ConsoleKey.Enter))
+                                if (WasKeyPressed(ConsoleKey.Spacebar))
                                 {
                                     _gameCoordinator.EndTurn();
                                     continue;
                                 }
-                                _waitingView.Message = "Turn done! Press enter to send.";
+                                _waitingView.Message = "Turn done! Press space to send.";
                                 _waitingView.MessageColor = ConsoleColor.Red;
                                 _waitingView.Draw();
                                 break;
@@ -139,23 +182,25 @@ namespace dsproject
                             case TurnStatus.Waiting:
                                 _waitingView.Message = "Waiting for your turn...";
                                 _waitingView.MessageColor = ConsoleColor.White;
+                                _waitingView.Draw();
                                 break;
                             case TurnStatus.Ongoing:
-                                if (WasKeyPressed(ConsoleKey.Enter))
+                                if (WasKeyPressed(ConsoleKey.Spacebar))
                                 {
                                     _gameState.DealSelf();
                                     continue;
                                 }
-                                _waitingView.Message = _gameState.LocalPlayer.Dealer ? "You are the dealer! Press enter to deal yourself a hand and play the first card." : "Press enter to deal yourself a hand.";
+                                _waitingView.Message = "Press space to deal yourself a hand.";
                                 _waitingView.MessageColor = ConsoleColor.Green;
+                                _waitingView.Draw();
                                 break;
                             case TurnStatus.Ready:
-                                if (WasKeyPressed(ConsoleKey.Enter))
+                                if (WasKeyPressed(ConsoleKey.Spacebar))
                                 {
                                     _gameCoordinator.EndTurn();
                                     continue;
                                 }
-                                _waitingView.Message = "Turn done! Press enter to send.";
+                                _waitingView.Message = "Turn done! Press space to send.";
                                 _waitingView.MessageColor = ConsoleColor.Red;
                                 _waitingView.Draw();
                                 break;
@@ -168,7 +213,7 @@ namespace dsproject
                 }
 
                 _display.Update();
-                Thread.Sleep(50);
+                Thread.Sleep(100);
             }
         }
 
@@ -216,13 +261,39 @@ namespace dsproject
             var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
 
             var rowIndex = row;
-            foreach (var networkIf in networkInterfaces)
+            for (var i = 0; i < networkInterfaces.Length; i++)
             {
-                _display.WriteString(networkIf.Name + " " + networkIf.Id, rowIndex, col);
+                _display.WriteString(networkInterfaces[i].Name + " " + i, rowIndex, col);
                 rowIndex++;
             }
 
             return rowIndex;
+        }
+
+
+
+        private void UpdateCards()
+        {
+            if (_gameState.Pile.TryPeek(out var topCard))
+            {
+                _waitingView.TopCard = topCard;
+                _cardsView.TopCard = topCard;
+            }
+
+            _cardsView.Hand.Clear();
+            _cardsView.Hand.AddRange(_gameState.LocalPlayer.Hand);
+        }
+
+        private int PlayableCards()
+        {
+            int playableCards = 0;
+
+            foreach (UnoCard card in _gameState.LocalPlayer.Hand)
+            {
+                if (_gameState.CanPlayCard(card)) playableCards++;
+            }
+
+            return playableCards;
         }
     }
 }

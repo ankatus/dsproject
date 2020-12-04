@@ -38,11 +38,11 @@ namespace dsproject
         {
             IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(multicastGroupAddress), multicastGroupPort);
             _SendingClient.Send(data, data.Length, ipEndPoint);
+            Debug.WriteLine("Sent message:" + Encoding.UTF8.GetString(data));
         }
 
         public byte[] GetMessage()
         {
-            Debug.WriteLine("Queue size: " + _ReceivedPackets.Count);
             if (_ReceivedPackets.Count == 0)
             {
                 return null;
@@ -62,7 +62,6 @@ namespace dsproject
                     while (true)
                     {
                         _ReceivedPackets.Enqueue(_ReceiveClient.Receive(ref ipEndPoint));
-                        Thread.Sleep(1000);
                     }
                 };
 

@@ -42,8 +42,8 @@ namespace dsproject
             // Check OS
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Console.SetBufferSize(DISPLAY_WIDTH + 1, DISPLAY_HEIGHT);
                 Console.SetWindowSize(DISPLAY_WIDTH + 1, DISPLAY_HEIGHT);
+                Console.SetBufferSize(DISPLAY_WIDTH + 1, DISPLAY_HEIGHT);
 
                 WriteString("Display Initialized!", 0, 0);
                 WriteString(("Window: W: " + Console.WindowWidth + " h: " + Console.WindowHeight), 1, 0);
@@ -109,16 +109,17 @@ namespace dsproject
             // Check if string fits on this row starting from "col"
             if (content.Length <= DISPLAY_WIDTH - col)
             {
-                Array.Copy(content.ToCharArray(), 0, _characters[row], col, content.Length);
+                InsertArray(content.ToCharArray(), row, col, color);
             }
             else
             {
                 // If not, take a substring that fits and try to write the rest on the next row
                 var thisRowContent = content.Substring(0, DISPLAY_WIDTH - col);
-                Array.Copy(thisRowContent.ToCharArray(), 0, _characters[row], col, thisRowContent.Length);
+
+                InsertArray(thisRowContent.ToCharArray(), row, col, color);
 
                 var nextRowContent = content.Substring(DISPLAY_WIDTH - col);
-                WriteString(nextRowContent, row + 1, 0);
+                WriteString(nextRowContent, row + 1, 0, color);
             }
         }
 

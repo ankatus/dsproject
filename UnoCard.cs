@@ -4,9 +4,9 @@ namespace dsproject
 {
     internal class UnoCard
     {
-        public CardType Type { get; }
-        public CardColor Color { get; }
-        public int Number { get; }
+        public CardType Type { get; init; }
+        public CardColor Color { get; init; }
+        public int Number { get; init; }
 
         public UnoCard(CardType type) : this(type, CardColor.Blue, 0)
         {
@@ -27,6 +27,8 @@ namespace dsproject
             Color = source.Color;
             Number = source.Number;
         }
+
+        public UnoCard() {}
 
         public char[][] GetGraphic()
         {

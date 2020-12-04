@@ -13,7 +13,7 @@ namespace dsproject
 
         private readonly Display _display;
 
-        public IList<UnoCard> Hand { get; set; }
+        public List<UnoCard> Hand { get; set; }
         public UnoCard TopCard { get; set; }
         public int VisibleIndex { get; private set; }
 
@@ -42,10 +42,11 @@ namespace dsproject
         public void Draw()
         {
             // Draw top card
-            _display.InsertArray(TopCard.GetGraphic(), 0, 60, Utils.CardToConsoleColor(TopCard.Color));
+            if (TopCard is not null) _display.InsertArray(TopCard.GetGraphic(), 0, 60, Utils.CardToConsoleColor(TopCard.Color));
 
             // Draw visible hand
-            for (var i = 0; i < VISIBLE_CARDS; i++)
+            var cardsAfterIndex = Hand.Count - (VISIBLE_CARDS * VisibleIndex); 
+            for (var i = 0; i < (cardsAfterIndex < VISIBLE_CARDS ? cardsAfterIndex : VISIBLE_CARDS); i++)
             {
                 var card = Hand[i + VisibleIndex * VISIBLE_CARDS];
 

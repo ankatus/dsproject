@@ -24,7 +24,7 @@ namespace dsproject
         public void Draw()
         {
             // Draw top card
-            _display.InsertArray(TopCard.GetGraphic(), 0, 60, Utils.CardToConsoleColor(TopCard.Color));
+            if (TopCard is not null) _display.InsertArray(TopCard.GetGraphic(), 0, 60, Utils.CardToConsoleColor(TopCard.Color));
 
             // Draw message
             _display.WriteString(Message, 30, 0, MessageColor);

@@ -45,6 +45,7 @@ namespace dsproject
     {
         public int Receiver { get; set; }
         public bool Approve { get; set; }
+        public string ErrorString { get; set; }
 
         public ResponseMessage()
         {
