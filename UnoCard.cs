@@ -32,11 +32,11 @@ namespace dsproject
         {
             return Type switch
             {
-                CardType.Wild => throw new NotImplementedException(),
-                CardType.WildDrawFour => throw new NotImplementedException(),
-                CardType.Skip => throw new NotImplementedException(),
-                CardType.DrawTwo => throw new NotImplementedException(),
-                CardType.Reverse => throw new NotImplementedException(),
+                CardType.Wild => CardGraphics.Wild,
+                CardType.WildDrawFour => CardGraphics.WildDrawFour,
+                CardType.Skip => CardGraphics.Skip,
+                CardType.DrawTwo => CardGraphics.DrawTwo,
+                CardType.Reverse => CardGraphics.Reverse,
                 CardType.Number => CardGraphics.NumberCards[Number],
                 _ => throw new ArgumentOutOfRangeException()
             };

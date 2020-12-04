@@ -13,7 +13,7 @@ namespace dsproject
 
         private readonly Display _display;
 
-        public IList<UnoCard> Hand { get; }
+        public IList<UnoCard> Hand { get; set; }
         public UnoCard TopCard { get; set; }
         public int VisibleIndex { get; private set; }
 
