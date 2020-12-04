@@ -104,7 +104,40 @@ namespace dsproject
                 return a.PlayerID.CompareTo(b.PlayerID);
             });
 
+            //Search smallest playerID
+            int smallestPlayerID = int.MaxValue;
+            foreach (PlayerInfo info in lobbyInfo.Players)
+            {
+                if (info.PlayerID < smallestPlayerID)
+                {
+                    smallestPlayerID = info.PlayerID;
+                }
+            }
+
+            //Set smallest playerID player as dealer
+            foreach (PlayerInfo info in lobbyInfo.Players)
+            {
+                if (info.PlayerID == smallestPlayerID)
+                {
+                    info.Dealer = true;
+                }
+            }
+
+            //Search for local player
+            PlayerInfo localPlayerInfo = null;
+            foreach (PlayerInfo info in lobbyInfo.Players)
+            {
+                if (info.PlayerID == _UniqueID)
+                {
+                    localPlayerInfo = info;
+                }
+            }
+
             // VALIDATE LOBBY, send lobbyinfo to other and check that they have same
+
+
+            // TODO, use smallestPlayerID as seed (for now)
+            _GameState.InitGame(lobbyInfo.Players, localPlayerInfo, smallestPlayerID);
 
             _LobbyInfo = lobbyInfo;
             return lobbyInfo;

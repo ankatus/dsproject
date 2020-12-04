@@ -63,7 +63,7 @@ namespace dsproject
             _display.Update();
             Thread.Sleep(2000);
 
-            _gameCoordinator.JoinGame(name, Int32.Parse(size));
+            LobbyInfo lobbyInfo = _gameCoordinator.JoinGame(name, Int32.Parse(size));
 
             GameLoop();
         }
