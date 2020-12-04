@@ -15,14 +15,16 @@ namespace dsproject
         private readonly WaitingView _waitingView;
         private readonly CardsView _cardsView;
         private readonly GameState _gameState;
+        private readonly GameCoordinator _gameCoordinator;
         private ConsoleKey? _input;
 
-        public UIController(Display display, GameState gameState)
+        public UIController(Display display, GameState gameState, GameCoordinator gameCoordinator)
         {
             _display = display;
             _cardsView = new CardsView(_display);
             _waitingView = new WaitingView(_display);
             _gameState = gameState;
+            _gameCoordinator = gameCoordinator;
             _input = null;
         }
 
@@ -34,7 +36,7 @@ namespace dsproject
             _display.WriteString(prompt, 0, 0);
             _display.Update();
             Console.SetCursorPosition(prompt.Length, 0);
-            var answer = Console.ReadLine();
+            var name = Console.ReadLine();
 
             _display.Clear();
             _display.WriteString("Select Interface:",0,0);
@@ -47,18 +49,21 @@ namespace dsproject
             _display.Clear();
             _display.WriteString(prompt, 0, 0);
             _display.Update();
-            answer = Console.ReadLine();
+            var size = Console.ReadLine();
+            //TODO check that size is interger
 
             prompt = "Group address: ";
             _display.Clear();
             _display.WriteString(prompt, 0, 0);
             _display.Update();
-            answer = Console.ReadLine();
+            var answer = Console.ReadLine();
             
             _display.Clear();
             _display.WriteString("Joining game...", 0, 0);
             _display.Update();
             Thread.Sleep(2000);
+
+            _gameCoordinator.JoinGame(name, Int32.Parse(size));
 
             GameLoop();
         }
@@ -111,7 +116,7 @@ namespace dsproject
                             case TurnStatus.Ready:
                                 if (WasKeyPressed(ConsoleKey.Enter))
                                 {
-                                    // TODO: Tell coordinator that turn is done
+                                    _gameCoordinator.EndTurn();
                                     continue;
                                 }
                                 _waitingView.Message = "Turn done! Press enter to send.";
@@ -147,7 +152,7 @@ namespace dsproject
                             case TurnStatus.Ready:
                                 if (WasKeyPressed(ConsoleKey.Enter))
                                 {
-                                    // TODO: Tell coordinator that turn is done
+                                    _gameCoordinator.EndTurn();
                                     continue;
                                 }
                                 _waitingView.Message = "Turn done! Press enter to send.";
