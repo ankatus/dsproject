@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -41,7 +42,7 @@ namespace dsproject
 
         public byte[] GetMessage()
         {
-            Console.WriteLine("Queue size: " + _ReceivedPackets.Count);
+            Debug.WriteLine("Queue size: " + _ReceivedPackets.Count);
             if (_ReceivedPackets.Count == 0)
             {
                 return null;

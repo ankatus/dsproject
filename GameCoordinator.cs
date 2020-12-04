@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -53,7 +54,7 @@ namespace dsproject
                 {
                     JoinGameMessage msg = new JoinGameMessage() { Sender = _UniqueID, Name = name, LobbySize = lobbySize, TimeStamp = DateTime.Now };
                     _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(msg));
-                    Console.WriteLine("Sent message:" + JsonSerializer.Serialize(msg));
+                    Debug.WriteLine("Sent message:" + JsonSerializer.Serialize(msg));
                     Thread.Sleep(1000);
                 }
             };
@@ -73,7 +74,7 @@ namespace dsproject
                 //Check if JoinLobbyMessage was for same lobby size
                 if (msg.LobbySize == lobbySize)
                 {
-                    Console.WriteLine("Received correct JoinGameMessage: " + JsonSerializer.Serialize(msg));
+                    Debug.WriteLine("Received correct JoinGameMessage: " + JsonSerializer.Serialize(msg));
 
                     bool newPlayer = true;
 
@@ -88,7 +89,7 @@ namespace dsproject
 
                     if (newPlayer)
                     {
-                        Console.WriteLine("New player found");
+                        Debug.WriteLine("New player found");
                         lobbyInfo.Players.Add(new PlayerInfo { PlayerID = msg.Sender, PlayerName = msg.Name });
                     }
                 }
@@ -199,11 +200,11 @@ namespace dsproject
             {
                 StateUpdateInfo receivedInfo = _GameState.Update(msg.TurnInfo);
 
-                //bool approved = receivedInfo.Result == StateUpdateResult.Ok;
+                bool approved = receivedInfo.Result == StateUpdateResult.Ok;
 
-                //ResponseMessage response = new ResponseMessage() { Sender = _UniqueID, Receiver = msg.Sender, Approve=approved, TimeStamp = DateTime.Now };
-                //_NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(response));
-                //Console.WriteLine("Sent approve message:" + JsonSerializer.Serialize(response));
+                ResponseMessage response = new ResponseMessage() { Sender = _UniqueID, Receiver = msg.Sender, Approve=approved, TimeStamp = DateTime.Now };
+                _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(response));
+                Debug.WriteLine("Sent approve message:" + JsonSerializer.Serialize(response));
             }
         }
 
@@ -235,8 +236,8 @@ namespace dsproject
                             ResponseMessages.Enqueue(JsonSerializer.Deserialize<ResponseMessage>(data));
                             break;
                         default:
-                            Console.WriteLine("Unknown message type: " + msg.MsgType);
-                            Console.WriteLine(BitConverter.ToString(data));
+                            Debug.WriteLine("Unknown message type: " + msg.MsgType);
+                            Debug.WriteLine(BitConverter.ToString(data));
                             break;
                     }
                 }
