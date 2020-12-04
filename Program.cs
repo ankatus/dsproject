@@ -73,12 +73,23 @@ namespace dsproject
 
             Console.ReadKey(true);
 
+            //GameCoordinator testing:
+            //Console.WriteLine("Write your name.");
+            //var name = Console.ReadLine();
+
+            //Console.WriteLine("Lobbysize?");
+            //var lobbySize = Console.ReadLine();
+
+            //GameCoordinator gc = new GameCoordinator(null);
+
+            //LobbyInfo info = gc.JoinGame(name, Int32.Parse(lobbySize));
 
 
-            //NetworkCommunication nc = new NetworkCommunication();
-
-            //Thread waitForPlayersThread = new Thread(nc.WaitForPlayersToJoin);
-            //waitForPlayersThread.Start();
+            //Console.WriteLine("Joined players:");
+            //foreach (PlayerInfo p in info.Players)
+            //{
+            //    Console.WriteLine("Player id: " + p.PlayerID + ", Name: " + p.PlayerName);
+            //}
         }
     }
 }

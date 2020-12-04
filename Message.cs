@@ -6,62 +6,49 @@ using System.Threading.Tasks;
 
 namespace dsproject
 {
-    internal abstract class Message
+    internal enum MessageType
     {
-        public UInt32 MsgType;
-        public UInt32 Sender;
-        
-        public abstract byte[] GetBytes();
-        public abstract void ReadBytes(byte[] bytes);
+        JoinGame = 1,
+        TurnInfo = 2,
+        Response = 3
+    }
 
-        public static Message CreateMessageFromBytes(byte[] bytes)
+    internal class Message
+    {
+        public MessageType MsgType { get; set; }
+        public int Sender { get; set; }
+        public DateTime TimeStamp { get; set; }
+    }
+
+    internal class JoinGameMessage : Message
+    {
+        public string Name { get; set; }
+        public int LobbySize { get; set; }
+
+        public JoinGameMessage()
         {
-            UInt32 msgType = BitConverter.ToUInt32(bytes, 0);
+            MsgType = MessageType.JoinGame;
+        }    
+    }
 
-            switch (msgType)
-            {
-                case 1:
-                    CreateGameMessage msg = new CreateGameMessage();
-                    msg.ReadBytes(bytes);
-                    return msg;
+    internal class TurnInfoMessage : Message
+    {
+        public TurnInfo TurnInfo { get; set; }
 
-                default:
-                    return null;
-            }
+        public TurnInfoMessage()
+        {
+            MsgType = MessageType.TurnInfo;
         }
     }
 
-    // Message used when waiting for players who want to play
-    internal class CreateGameMessage : Message
+    internal class ResponseMessage : Message
     {
-        public CreateGameMessage(UInt32 sender)
+        public int Receiver { get; set; }
+        public bool Approve { get; set; }
+
+        public ResponseMessage()
         {
-            MsgType = 1;
-            Sender = sender;
-        }
-
-        public CreateGameMessage()
-        {
-            MsgType = 1;
-            Sender = 0;
-        }
-
-        public override byte[] GetBytes()
-        {
-            List<byte> bytes = new List<byte>();
-            bytes.AddRange(BitConverter.GetBytes(MsgType));
-            bytes.AddRange(BitConverter.GetBytes(Sender));
-
-            return bytes.ToArray();
-        }
-
-        public override void ReadBytes(byte[] bytes)
-        {
-            int index = 0;
-
-            MsgType = BitConverter.ToUInt32(bytes, index);
-            index += 4;
-            Sender = BitConverter.ToUInt32(bytes, index);
+            MsgType = MessageType.Response;
         }
     }
 }
