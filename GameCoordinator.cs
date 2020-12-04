@@ -98,6 +98,11 @@ namespace dsproject
 
             cancellationTokenSource.Cancel();
 
+            lobbyInfo.Players.Sort((PlayerInfo a, PlayerInfo b) =>
+            {
+                return a.PlayerID.CompareTo(b.PlayerID);
+            });
+
             // VALIDATE LOBBY, send lobbyinfo to other and check that they have same
 
             _LobbyInfo = lobbyInfo;
