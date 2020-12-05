@@ -108,7 +108,8 @@ namespace dsproject
                 if (playerIndex == players.Count) break;
 
                 var nextPlayer = players[^(playerIndex + 1)];
-                if (playerRows[rowIndex].Sum(s => s.content.Length) + nextPlayer.content.Length <= Display.DisplayWidth)
+                // The length calculation is not 100% correct, since PLAYER_LIST_SEPARATOR does not appear at the end of the last player string, but it's good enough
+                if (playerRows[rowIndex].Sum(s => s.content.Length + PLAYER_LIST_SEPARATOR.Length) + nextPlayer.content.Length <= Display.DisplayWidth)
                 {
                     // String fits on this row
                     playerRows[^(rowIndex + 1)].Insert(0, nextPlayer);
