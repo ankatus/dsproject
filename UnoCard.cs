@@ -8,10 +8,6 @@ namespace dsproject
         public CardColor Color { get; init; }
         public int Number { get; init; }
 
-        public UnoCard(CardType type) : this(type, CardColor.Blue, 0)
-        {
-        }
-
         public UnoCard(CardType type, CardColor color, int number)
         {
             if (number is < 0 or > 9) throw new ArgumentException(null, nameof(number));
@@ -28,6 +24,7 @@ namespace dsproject
             Number = source.Number;
         }
 
+        // For JSON-deserialization
         public UnoCard() {}
 
         public char[][] GetGraphic()
@@ -71,7 +68,7 @@ namespace dsproject
 
     internal enum CardColor
     {
-        Red, Yellow, Green, Blue
+        Red, Yellow, Green, Blue, White
     }
 
 }

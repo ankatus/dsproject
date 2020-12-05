@@ -5,7 +5,7 @@ using System.Diagnostics;
 
 namespace dsproject
 {
-    internal class GameState : IGameState
+    internal class GameState
     {
         private Stack<UnoCard> _deck;
         private int _nextTurnPlayerId;
@@ -14,6 +14,11 @@ namespace dsproject
         private int _seed;
         private bool _playAnyColor;
         
+        public bool CardDrawn { get; private set; }
+        public bool PlayableCardInHand
+        {
+            get => LocalPlayer?.Hand.Any(CanPlayCard) ?? false;
+        }
         public int TurnNumber { get; private set; }
         public Stack<UnoCard> Pile { get; }
         public List<PlayerInfo> Players { get; }
@@ -49,6 +54,13 @@ namespace dsproject
             if (previousTurn.PlayedCard is not null) Pile.Push(previousTurn.PlayedCard);
             previousTurn.DrawnCards.ForEach(_ => _deck.Pop());
 
+            // Check if previous player won
+            if (previousTurnPlayer.Hand.Count == 0)
+            {
+                GameStatus = GameStatus.Lost;
+                return new StateUpdateInfo { Result = StateUpdateResult.Ok };
+            }
+
             // Check if our turn
             if (previousTurn.NextTurnPlayerID == LocalPlayer.PlayerID)
             {
@@ -81,6 +93,7 @@ namespace dsproject
             };
 
             // Clear local turn info
+            CardDrawn = false;
             _playedCard = null;
             _drawnCards.Clear();
             TurnNumber++;
@@ -139,25 +152,23 @@ namespace dsproject
             TurnStatus = TurnStatus.Ready;
         }
 
-        public UnoCard DrawCard()
+        public bool PlayerDrawCard()
         {
-            // Try to draw a card from the deck
-            if (!_deck.TryPop(out var drawnCard))
-            {
-                // Shuffle pile back into deck
-                ShufflePileToDeck();
+            if (CardDrawn) return false;
 
-                // Draw a card from deck
-                if (!_deck.TryPop(out drawnCard))
-                {
-                    // All cards are in players' hands
-                    throw new InvalidOperationException("Deck and pile out of cards");
-                }
+            var card = DrawCard();
+            LocalPlayer.Hand.Add(card);
+            _drawnCards.Add(card);
+            CardDrawn = true;
+
+            if (!PlayableCardInHand)
+            {
+                // End turn
+                _nextTurnPlayerId = GetNextPlayerId();
+                TurnStatus = TurnStatus.Ready;
             }
 
-            _drawnCards.Add(drawnCard);
-            LocalPlayer.Hand.Add(drawnCard);
-            return drawnCard;
+            return true;
         }
 
         public bool PlayCard(int cardIndex)
@@ -199,7 +210,7 @@ namespace dsproject
 
             if (LocalPlayer.Hand.Count == 0)
             {
-                // TODO: Win game
+                GameStatus = GameStatus.Won;
             }
 
             _nextTurnPlayerId = GetNextPlayerId();
@@ -210,6 +221,7 @@ namespace dsproject
 
         public void Reset()
         {
+            CardDrawn = false;
             Pile.Clear();
             _deck.Clear();
             Players.Clear();
@@ -259,6 +271,7 @@ namespace dsproject
                 Pile.Push(card);
                 _drawnCards.Add(card);
                 _playedCard = card;
+                _nextTurnPlayerId = GetNextPlayerId();
                 TurnStatus = TurnStatus.Ready;
                 break;
             }
@@ -267,6 +280,12 @@ namespace dsproject
         private void StartTurn(TurnInfo previousTurn)
         {
             Debug.WriteLine("TURN STARTED");
+
+            if (GameStatus == GameStatus.Won)
+            {
+                TurnStatus = TurnStatus.Ready;
+                return;
+            }
 
             TurnStatus = TurnStatus.Ongoing;
 
@@ -313,7 +332,9 @@ namespace dsproject
                         // We draw two cards and miss our turn
                         for (var i = 0; i < 2; i++)
                         {
-                            _drawnCards.Add(DrawCard());
+                            var drawnCard = DrawCard();
+                            _drawnCards.Add(drawnCard);
+                            LocalPlayer.Hand.Add(drawnCard);
                         }
                         _nextTurnPlayerId = GetNextPlayerId();
                         TurnStatus = TurnStatus.Ready;
@@ -348,7 +369,9 @@ namespace dsproject
                         // We draw four cards and miss our turn
                         for (var i = 0; i < 4; i++)
                         {
-                            _drawnCards.Add(DrawCard());
+                            var drawnCard = DrawCard();
+                            _drawnCards.Add(drawnCard);
+                            LocalPlayer.Hand.Add(drawnCard);
                         }
                         _nextTurnPlayerId = GetNextPlayerId();
                         TurnStatus = TurnStatus.Ready;
@@ -364,7 +387,9 @@ namespace dsproject
                         // We draw two cards and miss our turn
                         for (var i = 0; i < 2; i++)
                         {
-                            _drawnCards.Add(DrawCard());
+                            var drawnCard = DrawCard();
+                            _drawnCards.Add(drawnCard);
+                            LocalPlayer.Hand.Add(drawnCard);
                         }
                         _nextTurnPlayerId = GetNextPlayerId();
                         TurnStatus = TurnStatus.Ready;
@@ -477,16 +502,17 @@ namespace dsproject
             cards.Add(new UnoCard(CardType.Reverse, CardColor.Blue, 0));
 
             // Wild
-            cards.Add(new UnoCard(CardType.Wild));
-            cards.Add(new UnoCard(CardType.Wild));
-            cards.Add(new UnoCard(CardType.Wild));
-            cards.Add(new UnoCard(CardType.Wild));
+            cards.Add(new UnoCard(CardType.Wild, CardColor.White, 0));
+            cards.Add(new UnoCard(CardType.Wild, CardColor.White, 0));
+            cards.Add(new UnoCard(CardType.Wild, CardColor.White, 0));
+            cards.Add(new UnoCard(CardType.Wild, CardColor.White, 0));
 
             // WildDrawFour
-            cards.Add(new UnoCard(CardType.WildDrawFour));
-            cards.Add(new UnoCard(CardType.WildDrawFour));
-            cards.Add(new UnoCard(CardType.WildDrawFour));
-            cards.Add(new UnoCard(CardType.WildDrawFour));
+            // Not fully implemented
+            // cards.Add(new UnoCard(CardType.WildDrawFour));
+            // cards.Add(new UnoCard(CardType.WildDrawFour));
+            // cards.Add(new UnoCard(CardType.WildDrawFour));
+            // cards.Add(new UnoCard(CardType.WildDrawFour));
 
             // Shuffle cards
             cards = Utils.ShuffleList(cards, _seed).ToList();
@@ -546,6 +572,25 @@ namespace dsproject
             return Players.Single(player => player.PlayerID == playerId);
         }
 
+        private UnoCard DrawCard()
+        {
+            // Try to draw a card from the deck
+            if (!_deck.TryPop(out var drawnCard))
+            {
+                // Shuffle pile back into deck
+                ShufflePileToDeck();
+
+                // Draw a card from deck
+                if (!_deck.TryPop(out drawnCard))
+                {
+                    // All cards are in players' hands
+                    throw new InvalidOperationException("Deck and pile out of cards");
+                }
+            }
+
+            return drawnCard;
+        }
+
         private static void UpdatePlayerCards(PlayerInfo player, List<UnoCard> drawn, UnoCard played)
         {
             // Add drawn cards to hand
@@ -569,6 +614,6 @@ namespace dsproject
 
     internal enum GameStatus
     {
-        NotStarted, Dealing, Started
+        NotStarted, Dealing, Started, Won, Lost
     }
 }

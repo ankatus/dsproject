@@ -13,26 +13,24 @@ namespace dsproject
     internal class UIController
     {
         private readonly Display _display;
-        private readonly WaitingView _waitingView;
         private readonly CardsView _cardsView;
         private readonly GameState _gameState;
         private readonly GameCoordinator _gameCoordinator;
         private ConsoleKey? _input;
+        private bool _selectingWildcardColor; // Special state for when the player is selecting a color for a wildcard
 
         public UIController(Display display, GameState gameState, GameCoordinator gameCoordinator)
         {
             _display = display;
             _cardsView = new CardsView(_display);
-            _waitingView = new WaitingView(_display);
             _gameState = gameState;
             _gameCoordinator = gameCoordinator;
             _input = null;
+            _selectingWildcardColor = false;
         }
 
         public void JoinGame()
         {
-            // TODO: Interfaceing with coordinator
-
             var prompt = "Display Name: ";
             _display.WriteString(prompt, 0, 0);
             _display.Update();
@@ -82,11 +80,63 @@ namespace dsproject
                 if (Console.KeyAvailable)
                 {
                     _input = Console.ReadKey(true).Key;
-                    Debug.WriteLine("Key pressed: " + _input.ToString());
+                    Debug.WriteLine("Key pressed: " + _input);
                 }
                 else
                 {
                     _input = null;
+                }
+
+                // Check if we should scroll hand
+                if (_input is not null)
+                {
+                    var pressed = (ConsoleKey)_input;
+                    // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
+                    switch (pressed)
+                    {
+                        case ConsoleKey.LeftArrow:
+                            _cardsView.DecreaseVisibleIndex();
+                            break;
+                        case ConsoleKey.RightArrow:
+                            _cardsView.IncreaseVisibleIndex();
+                            break;
+                    }
+                }
+
+                if (_selectingWildcardColor)
+                {
+                    // Check for card selection
+                    if (_input is not null)
+                    {
+                        var pressed = (ConsoleKey)_input;
+                        // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
+                        switch (pressed)
+                        {
+                            case ConsoleKey.D1:
+                            case ConsoleKey.D2:
+                            case ConsoleKey.D3:
+                            case ConsoleKey.D4:
+                                PlayCard(pressed);
+                                break;
+                        }
+                    }
+
+                    var blueCard = new UnoCard(CardType.Wild, CardColor.Blue, 0);
+                    var redCard = new UnoCard(CardType.Wild, CardColor.Red, 0);
+                    var greenCard = new UnoCard(CardType.Wild, CardColor.Green, 0);
+                    var yellowCard = new UnoCard(CardType.Wild, CardColor.Yellow, 0);
+
+                    _cardsView.Hand.Clear();
+                    _cardsView.Hand.Add(blueCard);
+                    _cardsView.Hand.Add(redCard);
+                    _cardsView.Hand.Add(greenCard);
+                    _cardsView.Hand.Add(yellowCard);
+
+                    _cardsView.Message = "Choose a color for the wildcard.";
+                    _cardsView.MessageColor = ConsoleColor.Green;
+                    _cardsView.Draw();
+
+                    continue;
                 }
 
                 switch (_gameState.GameStatus)
@@ -95,11 +145,13 @@ namespace dsproject
                         switch (_gameState.TurnStatus)
                         {
                             case TurnStatus.Waiting:
-                                _waitingView.Message = "Waiting for your turn...";
-                                _waitingView.MessageColor = ConsoleColor.Yellow;
-                                _waitingView.Draw();
+                                _cardsView.Message = "Waiting for your turn...";
+                                _cardsView.MessageColor = ConsoleColor.Yellow;
+                                _cardsView.Draw();
                                 break;
                             case TurnStatus.Ongoing:
+
+                                // Dealer flipping the first card
                                 if (_gameState.LocalPlayer.Dealer && _gameState.TurnNumber == 1)
                                 {
                                     if (WasKeyPressed(ConsoleKey.Spacebar))
@@ -109,62 +161,66 @@ namespace dsproject
                                         continue;
                                     }
                                     // Dealer's turn to play first card
-                                    _waitingView.Message = "You are the dealer! Press space to flip the first card,";
-                                    _waitingView.MessageColor = ConsoleColor.Yellow;
-                                    _waitingView.Draw();
+                                    _cardsView.Message = "You are the dealer! Press space to flip the first card,";
+                                    _cardsView.MessageColor = ConsoleColor.Yellow;
+                                    _cardsView.Draw();
                                     break;
                                 }
 
-
-                                if (PlayableCards() == 0)
+                                // Can't play any cards even after drawing a new card
+                                if (!_gameState.PlayableCardInHand && _gameState.CardDrawn)
                                 {
                                     if (WasKeyPressed(ConsoleKey.Spacebar))
                                     {
-                                        _gameState.DrawCard();
-                                        Debug.WriteLine("Drew card when none was playable");
+                                        _gameCoordinator.EndTurn();
+                                        _cardsView.ResetVisibleIndex();
                                         continue;
                                     }
-
-                                    _waitingView.Message = "You can't play any cards, press space to draw new card";
-                                    _waitingView.MessageColor = ConsoleColor.Yellow;
-                                    _waitingView.Draw();                                  
+                                    _cardsView.Message = "You can't play any cards, press space to end turn.";
+                                    _cardsView.MessageColor = ConsoleColor.Yellow;
+                                    _cardsView.Draw();
+                                    break;
                                 }
-                                else
+
+                                // "Normal" turn, can choose a card to play or draw a new card
+                                _cardsView.Message = "Your turn to play a card!";
+                                _cardsView.MessageColor = ConsoleColor.Green;
+
+                                // Check for input first
+                                if (_input is not null)
                                 {
-                                    if (_input is not null)
+                                    var pressed = (ConsoleKey)_input;
+                                    // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
+                                    switch (pressed)
                                     {
-                                        var pressed = (ConsoleKey)_input;
-                                        // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
-                                        switch (pressed)
-                                        {
-                                            case ConsoleKey.LeftArrow:
-                                                _cardsView.DecreaseVisibleIndex();
-                                                break;
-                                            case ConsoleKey.RightArrow:
-                                                _cardsView.IncreaseVisibleIndex();
-                                                break;
-                                            case ConsoleKey.D1:
-                                            case ConsoleKey.D2:
-                                            case ConsoleKey.D3:
-                                            case ConsoleKey.D4:
-                                            case ConsoleKey.D5:
-                                                PlayCard(pressed);
-                                                break;
-                                        }
+                                        case ConsoleKey.Spacebar:
+                                            // Draw card
+                                            if (_gameState.CardDrawn) break;
+                                            _gameState.PlayerDrawCard();
+                                            break;
+                                        case ConsoleKey.D1:
+                                        case ConsoleKey.D2:
+                                        case ConsoleKey.D3:
+                                        case ConsoleKey.D4:
+                                        case ConsoleKey.D5:
+                                            PlayCard(pressed);
+                                            break;
                                     }
 
-                                    _cardsView.Draw();
                                 }
+
+                                _cardsView.Draw();
                                 break;
                             case TurnStatus.Ready:
                                 if (WasKeyPressed(ConsoleKey.Spacebar))
                                 {
                                     _gameCoordinator.EndTurn();
+                                    _cardsView.ResetVisibleIndex();
                                     continue;
                                 }
-                                _waitingView.Message = "Turn done! Press space to send.";
-                                _waitingView.MessageColor = ConsoleColor.Red;
-                                _waitingView.Draw();
+                                _cardsView.Message = "Turn done! Press space to send.";
+                                _cardsView.MessageColor = ConsoleColor.Red;
+                                _cardsView.Draw();
                                 break;
                             default:
                                 throw new ArgumentOutOfRangeException();
@@ -172,17 +228,17 @@ namespace dsproject
 
                         break;
                     case GameStatus.NotStarted:
-                        _waitingView.Message = "Waiting for game to start...";
-                        _waitingView.MessageColor = ConsoleColor.White;
-                        _waitingView.Draw();
+                        _cardsView.Message = "Waiting for game to start...";
+                        _cardsView.MessageColor = ConsoleColor.White;
+                        _cardsView.Draw();
                         break;
                     case GameStatus.Dealing:
                         switch (_gameState.TurnStatus)
                         {
                             case TurnStatus.Waiting:
-                                _waitingView.Message = "Waiting for your turn...";
-                                _waitingView.MessageColor = ConsoleColor.White;
-                                _waitingView.Draw();
+                                _cardsView.Message = "Waiting for your turn...";
+                                _cardsView.MessageColor = ConsoleColor.White;
+                                _cardsView.Draw();
                                 break;
                             case TurnStatus.Ongoing:
                                 if (WasKeyPressed(ConsoleKey.Spacebar))
@@ -190,9 +246,9 @@ namespace dsproject
                                     _gameState.DealSelf();
                                     continue;
                                 }
-                                _waitingView.Message = "Press space to deal yourself a hand.";
-                                _waitingView.MessageColor = ConsoleColor.Green;
-                                _waitingView.Draw();
+                                _cardsView.Message = "Press space to deal yourself a hand.";
+                                _cardsView.MessageColor = ConsoleColor.Green;
+                                _cardsView.Draw();
                                 break;
                             case TurnStatus.Ready:
                                 if (WasKeyPressed(ConsoleKey.Spacebar))
@@ -200,13 +256,23 @@ namespace dsproject
                                     _gameCoordinator.EndTurn();
                                     continue;
                                 }
-                                _waitingView.Message = "Turn done! Press space to send.";
-                                _waitingView.MessageColor = ConsoleColor.Red;
-                                _waitingView.Draw();
+                                _cardsView.Message = "Turn done! Press space to send.";
+                                _cardsView.MessageColor = ConsoleColor.Red;
+                                _cardsView.Draw();
                                 break;
                             default:
                                 throw new ArgumentOutOfRangeException();
                         }
+                        break;
+                    case GameStatus.Won:
+                        _cardsView.Message = "You've Won!";
+                        _cardsView.MessageColor = ConsoleColor.Green;
+                        _cardsView.Draw();
+                        break;
+                    case GameStatus.Lost:
+                        _cardsView.Message = "Someone else won!";
+                        _cardsView.MessageColor = ConsoleColor.Red;
+                        _cardsView.Draw();
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -253,6 +319,17 @@ namespace dsproject
                 _ => throw new InvalidOperationException(),
             };
 
+            if (cardIndex > _cardsView.Hand.Count) return;
+
+            var card = _gameState.LocalPlayer.Hand[cardIndex];
+
+            if (!_gameState.CanPlayCard(card)) return;
+
+            if (card.Type == CardType.Wild)
+            {
+                _selectingWildcardColor = true;
+            }
+
             _gameState.PlayCard(cardIndex);
         }
 
@@ -276,24 +353,11 @@ namespace dsproject
         {
             if (_gameState.Pile.TryPeek(out var topCard))
             {
-                _waitingView.TopCard = topCard;
                 _cardsView.TopCard = topCard;
             }
 
             _cardsView.Hand.Clear();
             _cardsView.Hand.AddRange(_gameState.LocalPlayer.Hand);
-        }
-
-        private int PlayableCards()
-        {
-            int playableCards = 0;
-
-            foreach (UnoCard card in _gameState.LocalPlayer.Hand)
-            {
-                if (_gameState.CanPlayCard(card)) playableCards++;
-            }
-
-            return playableCards;
         }
     }
 }

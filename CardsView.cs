@@ -16,6 +16,8 @@ namespace dsproject
         public List<UnoCard> Hand { get; set; }
         public UnoCard TopCard { get; set; }
         public int VisibleIndex { get; private set; }
+        public string Message { get; set; }
+        public ConsoleColor MessageColor { get; set; }
 
 
         public CardsView(Display display)
@@ -39,6 +41,8 @@ namespace dsproject
             VisibleIndex--;
         }
 
+        public void ResetVisibleIndex() => VisibleIndex = 0;
+
         public void Draw()
         {
             // Draw top card
@@ -56,6 +60,9 @@ namespace dsproject
                 // Draw selection number
                 _display.WriteString("" + (i + 1), 30, HAND_OFFSET_LEFT + i * CardGraphics.CARDGRAPHIC_WIDTH + i + 5);
             }
+            
+            // Draw message
+            _display.WriteString(Message, 45, 0, MessageColor);
         }
     }
 }

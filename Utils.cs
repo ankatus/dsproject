@@ -25,6 +25,7 @@ namespace dsproject
                 CardColor.Yellow => ConsoleColor.Yellow,
                 CardColor.Green => ConsoleColor.Green,
                 CardColor.Blue => ConsoleColor.Blue,
+                CardColor.White => ConsoleColor.White,
                 _ => throw new ArgumentOutOfRangeException(nameof(cardColor), cardColor, null)
             };
         }
