@@ -12,10 +12,10 @@ namespace dsproject
 
             var display = new Display();
 
-            GameState gameState = new GameState();
-            GameCoordinator gameCoordinator = new GameCoordinator(gameState);
+            var gameState = new GameState();
+            var gameCoordinator = new GameCoordinator(gameState);
 
-            UIController ui = new UIController(display, gameState, gameCoordinator);
+            var ui = new UIController(display, gameState, gameCoordinator);
 
             display.WriteString("Press any key to start game!", 49, 0);
             display.Update();

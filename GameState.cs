@@ -8,12 +8,12 @@ namespace dsproject
     internal class GameState
     {
         private Stack<UnoCard> _deck;
-        private int _nextTurnPlayerId;
         private UnoCard _playedCard;
         private readonly List<UnoCard> _drawnCards;
         private int _seed;
         private bool _playAnyColor;
         
+        public int NextTurnPlayerId { get; private set; }
         public bool CardDrawn { get; private set; }
         public bool PlayableCardInHand
         {
@@ -41,7 +41,7 @@ namespace dsproject
             // Some validation
             if (GameStatus is GameStatus.NotStarted) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Game not started" };
             if (TurnStatus is not TurnStatus.Waiting) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Still processing local turn" };
-            if (previousTurn.PlayerID != _nextTurnPlayerId) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Wrong player ID" };
+            if (previousTurn.PlayerID != NextTurnPlayerId) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Wrong player ID" };
             if (previousTurn.DrawnCards is null) return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Invalid data" };
 
             // Get previous turn player object
@@ -72,7 +72,7 @@ namespace dsproject
 
                 // Still check if reverse card was played
                 if (previousTurn.PlayedCard?.Type is CardType.Reverse) ReverseTurnOrder();
-                _nextTurnPlayerId = previousTurn.NextTurnPlayerID;
+                NextTurnPlayerId = previousTurn.NextTurnPlayerID;
             }
 
             return new StateUpdateInfo { Result = StateUpdateResult.Ok };
@@ -89,7 +89,7 @@ namespace dsproject
                 TurnNumber = TurnNumber,
                 PlayedCard = _playedCard,
                 DrawnCards = new List<UnoCard>(_drawnCards),
-                NextTurnPlayerID = _nextTurnPlayerId,
+                NextTurnPlayerID = NextTurnPlayerId,
             };
 
             // Clear local turn info
@@ -118,7 +118,7 @@ namespace dsproject
             // Expect dealer to have next turn
             var dealer = players.Single(player => player.Dealer == true);
             if (dealer is null) throw new ArgumentException("No dealer specified", nameof(players));
-            _nextTurnPlayerId = dealer.PlayerID;
+            NextTurnPlayerId = dealer.PlayerID;
 
             // Randomize deck
             InitDeck();
@@ -146,7 +146,7 @@ namespace dsproject
                 LocalPlayer.Hand.Add(drawnCard);
             }
 
-            _nextTurnPlayerId = GetNextPlayerId();
+            NextTurnPlayerId = GetNextPlayerId();
 
             GameStatus = GameStatus.Started;
             TurnStatus = TurnStatus.Ready;
@@ -164,7 +164,7 @@ namespace dsproject
             if (!PlayableCardInHand)
             {
                 // End turn
-                _nextTurnPlayerId = GetNextPlayerId();
+                NextTurnPlayerId = GetNextPlayerId();
                 TurnStatus = TurnStatus.Ready;
             }
 
@@ -213,7 +213,7 @@ namespace dsproject
                 GameStatus = GameStatus.Won;
             }
 
-            _nextTurnPlayerId = GetNextPlayerId();
+            NextTurnPlayerId = GetNextPlayerId();
             TurnStatus = TurnStatus.Ready;
 
             return true;
@@ -228,7 +228,7 @@ namespace dsproject
             _drawnCards.Clear();
             LocalPlayer = null;
             _playedCard = null;
-            _nextTurnPlayerId = 0;
+            NextTurnPlayerId = 0;
             TurnNumber = 0;
             _seed = 0;
             GameStatus = GameStatus.NotStarted;
@@ -271,7 +271,7 @@ namespace dsproject
                 Pile.Push(card);
                 _drawnCards.Add(card);
                 _playedCard = card;
-                _nextTurnPlayerId = GetNextPlayerId();
+                NextTurnPlayerId = GetNextPlayerId();
                 TurnStatus = TurnStatus.Ready;
                 break;
             }
@@ -325,7 +325,7 @@ namespace dsproject
                         Debug.WriteLine("Card Played: Skip");
                         // We miss our turn
                         TurnStatus = TurnStatus.Ready;
-                        _nextTurnPlayerId = GetNextPlayerId();
+                        NextTurnPlayerId = GetNextPlayerId();
                         break;
                     case CardType.DrawTwo:
                         Debug.WriteLine("Card Played: DrawTwo");
@@ -336,7 +336,7 @@ namespace dsproject
                             _drawnCards.Add(drawnCard);
                             LocalPlayer.Hand.Add(drawnCard);
                         }
-                        _nextTurnPlayerId = GetNextPlayerId();
+                        NextTurnPlayerId = GetNextPlayerId();
                         TurnStatus = TurnStatus.Ready;
                         break;
                     case CardType.Reverse:
@@ -373,13 +373,13 @@ namespace dsproject
                             _drawnCards.Add(drawnCard);
                             LocalPlayer.Hand.Add(drawnCard);
                         }
-                        _nextTurnPlayerId = GetNextPlayerId();
+                        NextTurnPlayerId = GetNextPlayerId();
                         TurnStatus = TurnStatus.Ready;
                         break;
                     case CardType.Skip:
                         Debug.WriteLine("Card Played: Skip");
                         // We miss our turn
-                        _nextTurnPlayerId = GetNextPlayerId();
+                        NextTurnPlayerId = GetNextPlayerId();
                         TurnStatus = TurnStatus.Ready;
                         break;
                     case CardType.DrawTwo:
@@ -391,7 +391,7 @@ namespace dsproject
                             _drawnCards.Add(drawnCard);
                             LocalPlayer.Hand.Add(drawnCard);
                         }
-                        _nextTurnPlayerId = GetNextPlayerId();
+                        NextTurnPlayerId = GetNextPlayerId();
                         TurnStatus = TurnStatus.Ready;
                         break;
                     case CardType.Reverse:
