@@ -11,26 +11,26 @@ namespace dsproject
 {
     internal class Display
     {
-        private const int DISPLAY_WIDTH = 150;
-        private const int DISPLAY_HEIGHT = 50;
-
         private readonly char[][] _characters;
         private readonly ConsoleColor[][] _colors;
+        
+        public const int DisplayWidth = 150;
+        public const int DisplayHeight = 50;
 
         public Display()
         {
             // Init characters
-            _characters = new char[DISPLAY_HEIGHT][];
-            for (var rowIndex = 0; rowIndex < DISPLAY_HEIGHT; rowIndex++)
+            _characters = new char[DisplayHeight][];
+            for (var rowIndex = 0; rowIndex < DisplayHeight; rowIndex++)
             {
-                _characters[rowIndex] = new char[DISPLAY_WIDTH];
+                _characters[rowIndex] = new char[DisplayWidth];
             }
 
             // Init colors
-            _colors = new ConsoleColor[DISPLAY_HEIGHT][];
-            for (var rowIndex = 0; rowIndex < DISPLAY_HEIGHT; rowIndex++)
+            _colors = new ConsoleColor[DisplayHeight][];
+            for (var rowIndex = 0; rowIndex < DisplayHeight; rowIndex++)
             {
-                _colors[rowIndex] = new ConsoleColor[DISPLAY_WIDTH];
+                _colors[rowIndex] = new ConsoleColor[DisplayWidth];
 
                 // Init to white
                 for (var i = 0; i < _colors[rowIndex].Length; i++)
@@ -42,14 +42,8 @@ namespace dsproject
             // Check OS
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Console.SetWindowSize(DISPLAY_WIDTH + 1, DISPLAY_HEIGHT);
-                Console.SetBufferSize(DISPLAY_WIDTH + 1, DISPLAY_HEIGHT);
-
-                WriteString("Display Initialized!", 0, 0);
-                WriteString(("Window: W: " + Console.WindowWidth + " h: " + Console.WindowHeight), 1, 0);
-                WriteString(("Buffer: W: " + Console.BufferWidth + " h: " + Console.BufferHeight), 2, 0);
-
-                Update();
+                Console.SetWindowSize(DisplayWidth + 1, DisplayHeight);
+                Console.SetBufferSize(DisplayWidth + 1, DisplayHeight);
             }
             else
             {
@@ -67,8 +61,8 @@ namespace dsproject
 
         public void InsertArray(char[][] content, int row, int col, ConsoleColor color)
         {
-            if (row is < 0 or >= DISPLAY_HEIGHT) throw new ArgumentOutOfRangeException(nameof(row));
-            if (col is < 0 or >= DISPLAY_WIDTH) throw new ArgumentOutOfRangeException(nameof(col));
+            if (row is < 0 or >= DisplayHeight) throw new ArgumentOutOfRangeException(nameof(row));
+            if (col is < 0 or >= DisplayWidth) throw new ArgumentOutOfRangeException(nameof(col));
 
             // Copy characters
             for (var rowIndex = 0; rowIndex < content.Length; rowIndex++)
@@ -103,22 +97,22 @@ namespace dsproject
 
         public void WriteString(string content, int row, int col, ConsoleColor color)
         {
-            if (row is < 0 or >= DISPLAY_HEIGHT) throw new ArgumentOutOfRangeException(nameof(row));
-            if (col is < 0 or >= DISPLAY_WIDTH) throw new ArgumentOutOfRangeException(nameof(col));
+            if (row is < 0 or >= DisplayHeight) throw new ArgumentOutOfRangeException(nameof(row));
+            if (col is < 0 or >= DisplayWidth) throw new ArgumentOutOfRangeException(nameof(col));
 
             // Check if string fits on this row starting from "col"
-            if (content.Length <= DISPLAY_WIDTH - col)
+            if (content.Length <= DisplayWidth - col)
             {
                 InsertArray(content.ToCharArray(), row, col, color);
             }
             else
             {
                 // If not, take a substring that fits and try to write the rest on the next row
-                var thisRowContent = content.Substring(0, DISPLAY_WIDTH - col);
+                var thisRowContent = content.Substring(0, DisplayWidth - col);
 
                 InsertArray(thisRowContent.ToCharArray(), row, col, color);
 
-                var nextRowContent = content.Substring(DISPLAY_WIDTH - col);
+                var nextRowContent = content.Substring(DisplayWidth - col);
                 WriteString(nextRowContent, row + 1, 0, color);
             }
         }
@@ -133,7 +127,7 @@ namespace dsproject
             // To avoid drawing one character at a time (slow), split _characters into chunks of continuous color and draw those
             var rows = new List<List<(ConsoleColor color, List<char> content)>>();
 
-            for (var rowIndex = 0; rowIndex < DISPLAY_HEIGHT; rowIndex++)
+            for (var rowIndex = 0; rowIndex < DisplayHeight; rowIndex++)
             {
                 var currentChunks = new List<(ConsoleColor color, List<char> content)>();
                 var rowChars = _characters[rowIndex];
@@ -141,7 +135,7 @@ namespace dsproject
                 var currentColor = _colors[rowIndex][0];
                 var currentContent = new List<char>();
 
-                for (var colIndex = 0; colIndex < DISPLAY_WIDTH; colIndex++)
+                for (var colIndex = 0; colIndex < DisplayWidth; colIndex++)
                 {
                     if (rowColors[colIndex] != currentColor)
                     {
@@ -158,9 +152,9 @@ namespace dsproject
                 rows.Add(currentChunks);
             }
 
-            Debug.Assert(rows.Count == DISPLAY_HEIGHT);
+            Debug.Assert(rows.Count == DisplayHeight);
 
-            for (var rowIndex = 0; rowIndex < DISPLAY_HEIGHT; rowIndex++)
+            for (var rowIndex = 0; rowIndex < DisplayHeight; rowIndex++)
             {
                 var chunks = rows[rowIndex];
                 Console.SetCursorPosition(0, rowIndex);
