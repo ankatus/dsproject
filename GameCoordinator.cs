@@ -15,6 +15,8 @@ namespace dsproject
         private NetworkCommunication _NetworkComms { get; set; }
         private GameState _GameState { get; set; }
         private int _UniqueID { get; set; }
+        private uint _MsgNumber { get; set; }
+        private string _MsgID { get { return _UniqueID + "-" + _MsgNumber; } }
         private LobbyInfo _LobbyInfo { get; set; }
         private ConcurrentQueue<JoinGameMessage> JoinGameMessages { get; set; }
         private ConcurrentQueue<TurnInfoMessage> TurnInfoMessages { get; set; }
@@ -29,6 +31,7 @@ namespace dsproject
 
             Random rnd = new Random();
             _UniqueID = rnd.Next(1, 1000000);
+            _MsgNumber = 1;
 
             JoinGameMessages = new ConcurrentQueue<JoinGameMessage>();
             TurnInfoMessages = new ConcurrentQueue<TurnInfoMessage>();
@@ -52,52 +55,59 @@ namespace dsproject
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    JoinGameMessage msg = new JoinGameMessage() { Sender = _UniqueID, Name = name, LobbySize = lobbySize, TimeStamp = DateTime.Now };
+                    JoinGameMessage msg = new JoinGameMessage() { Sender = _UniqueID, Name = name, LobbySize = lobbySize, MsgID = _MsgID };
                     _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(msg));
+                    _MsgNumber++;
+
+                    //Don't spam messages
                     Thread.Sleep(2000);
                 }
             };
 
+            //Start JoinGameMessage sending loop
             Task.Run(action);
 
             //Add local player to lobby
             PlayerInfo localPlayerInfo = new PlayerInfo { PlayerID = _UniqueID, PlayerName = name };
             lobbyInfo.Players.Add(localPlayerInfo);
 
+            //Loop until lobby is full
             while (lobbyInfo.Players.Count < lobbySize)
             {
                 bool messageAvailable = JoinGameMessages.TryDequeue(out JoinGameMessage msg);
 
-                if (messageAvailable == false)
+                if (messageAvailable)
                 {
-                    Thread.Sleep(1000);
-                    continue;
-                }
-
-                //Check if JoinLobbyMessage was for same lobby size
-                if (msg.LobbySize == lobbySize)
-                {
-                    Debug.WriteLine("Received correct JoinGameMessage: " + JsonSerializer.Serialize(msg));
-
-                    bool newPlayer = true;
-
-                    //Check if player wanting to join is already in lobby
-                    foreach (PlayerInfo info in lobbyInfo.Players)
+                    //Check if JoinLobbyMessage was for the same lobby size
+                    if (msg.LobbySize == lobbySize)
                     {
-                        if (info.PlayerID == msg.Sender)
+                        //Log message
+                        Debug.WriteLine("Received correct JoinGameMessage: " + JsonSerializer.Serialize(msg));
+
+                        bool newPlayer = true;
+
+                        //Check if player wanting to join is already in lobby
+                        foreach (PlayerInfo info in lobbyInfo.Players)
                         {
-                            newPlayer = false;
+                            if (info.PlayerID == msg.Sender)
+                            {
+                                newPlayer = false;
+                            }
+                        }
+
+                        if (newPlayer)
+                        {
+                            PlayerInfo newPlayerInfo = new PlayerInfo { PlayerID = msg.Sender, PlayerName = msg.Name };
+                            lobbyInfo.Players.Add(newPlayerInfo);
+                            Debug.WriteLine("New player found and added to lobby: " + newPlayerInfo.ToString());
                         }
                     }
-
-                    if (newPlayer)
-                    {
-                        Debug.WriteLine("New player found");
-                        lobbyInfo.Players.Add(new PlayerInfo { PlayerID = msg.Sender, PlayerName = msg.Name });
-                    }
                 }
-
-                Thread.Sleep(500);
+                else
+                {
+                    //If no message found, sleep a bit
+                    Thread.Sleep(1000);
+                }
             }
 
             cancellationTokenSource.Cancel();
@@ -115,7 +125,7 @@ namespace dsproject
                 }
             }
 
-            //Set smallest playerID player as dealer
+            //Set smallest playerID player as a dealer
             foreach (PlayerInfo info in lobbyInfo.Players)
             {
                 if (info.PlayerID == smallestPlayerID)
@@ -127,13 +137,13 @@ namespace dsproject
             // TODO
             // VALIDATE LOBBY, send lobbyinfo to other and check that they have same
 
-            // TODO, use smallestPlayerID as seed
-            Debug.WriteLine("Initing game...");
+            Debug.WriteLine("Lobby is full");
             Debug.WriteLine("Players:");
             foreach (PlayerInfo info in lobbyInfo.Players)
             {
                 Debug.WriteLine(info.ToString());
             }
+            Debug.WriteLine("Initiating game...");
             _GameState.InitGame(lobbyInfo.Players, localPlayerInfo, smallestPlayerID);
             Debug.WriteLine("Initing ready");
 
@@ -152,78 +162,57 @@ namespace dsproject
                 return;
             }
 
-            DateTime dataSentTime = DateTime.Now;
-            TurnInfoMessage turnInfoMsg = new TurnInfoMessage { TurnInfo = turnInfo, Sender = _UniqueID, TimeStamp = dataSentTime };
+            string msgID = _MsgID;
+            TurnInfoMessage turnInfoMsg = new TurnInfoMessage { TurnInfo = turnInfo, Sender = _UniqueID, MsgID = msgID };
             byte[] turnInfoMsgBytes = JsonSerializer.SerializeToUtf8Bytes(turnInfoMsg);
 
             bool turnApproved = false;
-            List<int> ApprovedPlayers = new List<int>();
-            int requiredNumberOfPlayerApprovals = _LobbyInfo.Players.Count - 1; //-1 because player does not approve own turn
+            List<int> ApprovedPlayers = new List<int>(); //Players who have approved this turn
+            int requiredNumberOfPlayerApprovals = _LobbyInfo.Players.Count - 1; //-1 because player does not approve local turn
 
             //TODO, implement some time here? now sends turn max 10 times then fails
             for (int i = 0; i < 10; i++)
             {
                 _NetworkComms.SendMessage(turnInfoMsgBytes);
+
+                //Sleep a bit to give others time to check turn and response
                 Thread.Sleep(500);
 
-                for (int j = 0; j < requiredNumberOfPlayerApprovals; j++)
+                bool responseAvailable;
+                do
                 {
-                    bool responseAvailable = ResponseMessages.TryDequeue(out ResponseMessage response);
+                    responseAvailable = ResponseMessages.TryDequeue(out ResponseMessage response);
 
-                    if (responseAvailable)
-                    {
-                        //Check if response is to our TurnInfoMessage
-                        if (response.Receiver == _UniqueID && response.TimeStamp == dataSentTime)
-                        {
-                            Debug.WriteLine("Received response to turn info message: " + JsonSerializer.Serialize(response));
+                    if (responseAvailable == false) { continue; }
 
-                            //Check if this player is in lobby
-                            if (IsThisPlayerInLobby(response.Sender))
-                            {
-                                //Check if turn was approved
-                                if (response.Approve)
-                                {
-                                    //Check if this player has already approved turn
-                                    if (!ApprovedPlayers.Contains(response.Sender))
-                                    {
-                                        Debug.WriteLine("Valid approvement received");
-                                        ApprovedPlayers.Add(response.Sender);
+                    //Check if response is to our message
+                    if (response.Receiver != _UniqueID) { Debug.WriteLine("Receive msg error: response was to some other message"); continue; }
 
-                                        if (ApprovedPlayers.Count == requiredNumberOfPlayerApprovals)
-                                        {
-                                            Debug.WriteLine("Turn approvement");
-                                            turnApproved = true;
-                                            break;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        Debug.WriteLine("Error: player has already approved turn");
-                                    }
-                                }
-                                else
-                                {
-                                    Debug.WriteLine("Error: player did not approve turn, reason: " + response.ErrorString);
-                                }
-                            }
-                            else
-                            {
-                                Debug.WriteLine("Error: player not in lobby");
-                            }
-                        }
-                        else
-                        {
-                            Debug.WriteLine("Error: receiver or timestamp was incorrect");
-                        }
-                    }
-                    else
-                    {
-                        Thread.Sleep(500);
-                    }
-                }
+                    //Check if response is to same message as we sent
+                    if (response.ReceivedMsgID != msgID) { Debug.WriteLine("Receive msg error: message ID did not match"); continue; }
+
+                    //Log message
+                    Debug.WriteLine("Received response to turn info message: " + JsonSerializer.Serialize(response));
+
+                    //Check if this player is in lobby
+                    if (IsThisPlayerInLobby(response.Sender) == false) { Debug.WriteLine("Receive msg error: player not in lobby"); continue; }
+
+                    //Check if turn was approved
+                    if (response.Approve == false) { Debug.WriteLine("Receive msg error: player did not approve turn, reason: " + response.ErrorString); continue; }
+
+                    //Check if this player has already approved turn
+                    if (ApprovedPlayers.Contains(response.Sender) == true) { Debug.WriteLine("Error: player has already approved turn"); continue; }
+
+                    Debug.WriteLine("Received response approved turn");
+                    ApprovedPlayers.Add(response.Sender);
+
+                    //Check if it was last required approvement
+                    if (ApprovedPlayers.Count == requiredNumberOfPlayerApprovals) { break; }
+                } while (responseAvailable);
 
                 if (ApprovedPlayers.Count == requiredNumberOfPlayerApprovals)
                 {
+                    Debug.WriteLine("Turn approved");
                     turnApproved = true;
                     break;
                 }
@@ -233,6 +222,7 @@ namespace dsproject
             {
                 //All good
                 Debug.WriteLine("Ending turn finished");
+                //Clear unnessary responses
                 ResponseMessages.Clear();
             }
             else
@@ -266,11 +256,12 @@ namespace dsproject
 
             if (approved == false)
             {
-                Debug.WriteLine("Error: " + receivedInfo.ErrorString);
+                Debug.WriteLine("Error processing turn info: " + receivedInfo.ErrorString);
             }
 
-            ResponseMessage response = new ResponseMessage() { Sender = _UniqueID, Receiver = msg.Sender, Approve = approved, ErrorString = receivedInfo.ErrorString, TimeStamp = msg.TimeStamp };
+            ResponseMessage response = new ResponseMessage() { Sender = _UniqueID, Receiver = msg.Sender, Approve = approved, ErrorString = receivedInfo.ErrorString, ReceivedMsgID = msg.MsgID, MsgID = _MsgID };
             _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(response));
+            _MsgNumber++;
         }
 
         private void MessageReceiver()

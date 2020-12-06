@@ -17,7 +17,7 @@ namespace dsproject
     {
         public MessageType MsgType { get; set; }
         public int Sender { get; set; }
-        public DateTime TimeStamp { get; set; }
+        public string MsgID { get; set; }
     }
 
     internal class JoinGameMessage : Message
@@ -44,6 +44,7 @@ namespace dsproject
     internal class ResponseMessage : Message
     {
         public int Receiver { get; set; }
+        public string ReceivedMsgID { get; set; }
         public bool Approve { get; set; }
         public string ErrorString { get; set; }
 
