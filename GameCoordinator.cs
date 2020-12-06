@@ -91,11 +91,10 @@ namespace dsproject
 
             if (lobbyAvailable)
             {
-                Logger.Log("Available lobby found, try to join it");
+                Logger.Log("Available lobby found, trying to join it...");
                 //Available lobby found, try to join it
                 int hostID = 0;
-                sw.Start();
-                while (sw.ElapsedMilliseconds < 10000)
+                while (true)
                 {
                     bool messageAvailable = AdvertiseLobbyMessages.TryDequeue(out AdvertiseLobbyMessage receivedMsg);
 
@@ -110,8 +109,9 @@ namespace dsproject
                             //Check if lobby is now full
                             if (receivedMsg.LobbyInfo.Players.Count == lobbySize)
                             {
-                                //Lobby full, we can proceed initiating game
+                                //Lobby full, we can proceed initiating game                            
                                 _LobbyInfo = receivedMsg.LobbyInfo;
+                                Logger.Log("Lobby is now full");
                                 break;
                             }
                         }
@@ -127,6 +127,7 @@ namespace dsproject
                                 {
                                     //We are in this lobby so we can set hostID
                                     hostID = receivedMsg.Sender;
+                                    Logger.Log("We are added to lobby");
                                 }
                             }
 
@@ -141,22 +142,21 @@ namespace dsproject
                                     Receiver = receivedMsg.Sender
                                 };
 
+                                Logger.Log("Sent request to join lobby");
                                 _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(joinLobbyMessage));
                                 _JoinLobbyMessageNumber++;
                             }
                         }
-
                     }
                     else
                     {
                         Thread.Sleep(100);
                     }
                 }
-                sw.Reset();
             }
             else
             {
-                Logger.Log("No available lobby found, create own lobby");
+                Logger.Log("No available lobby found, creating own lobby...");
                 //Lobby not available
                 //Create own lobby          
 
@@ -177,6 +177,7 @@ namespace dsproject
                 //Advertise lobby until lobby full
                 while (_LobbyInfo.Players.Count < lobbySize)
                 {
+                    Logger.Log("Sent lobby advertisement");
                     _NetworkComms.SendMessage(advertiseLobbyMessageBytes);
 
                     Thread.Sleep(500);
