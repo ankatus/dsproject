@@ -16,7 +16,7 @@ namespace dsproject
 
         public override string ToString()
         {
-            return "Name: " + PlayerName + ", ID: " + PlayerID;
+            return "Name: " + PlayerName + ", ID: " + PlayerID + ((Dealer == true) ? " (Dealer)" : "");
         }
     }
 }
