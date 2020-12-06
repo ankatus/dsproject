@@ -538,6 +538,12 @@ namespace dsproject
             // Update players
             _view.Players.Clear();
             _view.Players.AddRange(_gameState.Players);
+            
+            // Update local player in list since gamestate doesnt do it...
+            var localPlayerIndex =
+                _view.Players.FindIndex(0, player => player.PlayerID == _gameState.LocalPlayer.PlayerID);
+            if (localPlayerIndex is -1) throw new InvalidOperationException("Local player not found in players");
+            _view.Players[localPlayerIndex] = _gameState.LocalPlayer;
 
             // Check if we should scroll hand
             if (_input is null)
