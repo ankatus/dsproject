@@ -15,7 +15,7 @@ namespace dsproject
     {
         private UdpClient _SendingClient { get; set; }
         private UdpClient _ReceiveClient { get; set; }
-        private readonly string multicastGroupAddress = "239.1.2.3";
+        private readonly string multicastGroupAddress = "239.0.0.100";
         private readonly int multicastGroupPort = 55000;
         private Queue<byte[]> _ReceivedPackets { get; set; }
         private bool receiveLoopRunning { get; set; }
