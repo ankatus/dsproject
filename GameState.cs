@@ -13,7 +13,7 @@ namespace dsproject
         private readonly List<UnoCard> _drawnCards;
         private int _seed;
         private bool _playAnyColor;
-        
+
         public int NextTurnPlayerId { get; private set; }
         public bool CardDrawn { get; private set; }
         public bool PlayableCardInHand
@@ -241,7 +241,7 @@ namespace dsproject
             LocalPlayer.Hand.RemoveAt(cardIndex);
             _playedCard = card;
             _playedCardIndex = cardIndex;
-            
+
             if (_playAnyColor) _playAnyColor = false;
 
             if (LocalPlayer.Hand.Count == 0)
@@ -378,8 +378,19 @@ namespace dsproject
                         TurnStatus = TurnStatus.Ready;
                         break;
                     case CardType.Reverse:
-                        Debug.WriteLine("Card Played: Reverse");
-                        // No effect here
+                        // In two-player game, reverse == skip
+                        if (Players.Count == 2)
+                        {
+                            Debug.WriteLine("Card Played: Reverse (=skip, in 2-player game)");
+                            // We miss our turn
+                            TurnStatus = TurnStatus.Ready;
+                            NextTurnPlayerId = GetNextPlayerId();
+                        }
+                        else
+                        {
+                            Debug.WriteLine("Card Played: Reverse");
+                            // No effect here
+                        }
                         return;
                     case CardType.Number:
                         Debug.WriteLine("Card Played: Number");
@@ -433,8 +444,18 @@ namespace dsproject
                         TurnStatus = TurnStatus.Ready;
                         break;
                     case CardType.Reverse:
-                        Debug.WriteLine("Card Played: Reverse");
-                        ReverseTurnOrder();
+                        // In two-player game, reverse == skip
+                        if (Players.Count == 2)
+                        {
+                            Debug.WriteLine("Card Played: Reverse (=skip, in 2-player game)");
+                            NextTurnPlayerId = GetNextPlayerId();
+                            TurnStatus = TurnStatus.Ready;
+                        }
+                        else
+                        {
+                            Debug.WriteLine("Card Played: Reverse");
+                            ReverseTurnOrder();
+                        }
                         break;
                     case CardType.Number:
                         Debug.WriteLine("Card Played: Number");

@@ -52,14 +52,14 @@ namespace dsproject
             int players = 0;
             while (true)
             {
-                prompt = "Group size (3-10): ";
+                prompt = "Group size (2-10): ";
                 _display.Clear();
                 _display.WriteString(prompt, 0, 0);
                 _display.Update();
                 Console.SetCursorPosition(prompt.Length, 0);
                 var answer = Console.ReadLine();
 
-                if (int.TryParse(answer, out players) && players is > 2 and < 11) break;
+                if (int.TryParse(answer, out players) && players is > 1 and < 11) break;
 
                 _display.Clear();
                 _display.WriteString("Not a valid group size!", 0, 0);
