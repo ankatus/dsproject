@@ -4,8 +4,8 @@ namespace dsproject
 {
     internal class UnoCard
     {
-        public CardType Type { get; init; }
-        public CardColor Color { get; init; }
+        public CardType Type { get; set; }
+        public CardColor Color { get; set; }
         public int Number { get; init; }
 
         public UnoCard(CardType type, CardColor color, int number)

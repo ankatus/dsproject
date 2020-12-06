@@ -78,7 +78,6 @@ namespace dsproject
             _display.Clear();
             _display.WriteString("Joining game...", 0, 0);
             _display.Update();
-            Thread.Sleep(2000);
 
             var lobbyInfo = _gameCoordinator.JoinGame(name, players);
             _view.LocalPlayerId = _gameState.LocalPlayer.PlayerID;
@@ -346,7 +345,7 @@ namespace dsproject
                 _ => throw new InvalidOperationException(),
             };
 
-            if (cardIndex > _view.Hand.Count) return;
+            if (cardIndex > _view.Hand.Count - 1) return;
 
             var card = _gameState.LocalPlayer.Hand[cardIndex];
 

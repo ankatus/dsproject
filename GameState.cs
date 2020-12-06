@@ -212,6 +212,8 @@ namespace dsproject
                     throw new ArgumentOutOfRangeException();
             }
 
+            if (_playAnyColor) _playAnyColor = false;
+
             if (LocalPlayer.Hand.Count == 0)
             {
                 GameStatus = GameStatus.Won;
@@ -240,6 +242,8 @@ namespace dsproject
             _playedCard = card;
             _playedCardIndex = cardIndex;
             
+            if (_playAnyColor) _playAnyColor = false;
+
             if (LocalPlayer.Hand.Count == 0)
             {
                 GameStatus = GameStatus.Won;
@@ -468,11 +472,7 @@ namespace dsproject
             }
 
             // Effect of Wild as first discard
-            if (_playAnyColor)
-            {
-                _playAnyColor = false;
-                return true;
-            }
+            if (_playAnyColor) return true;
 
             return false;
         }
