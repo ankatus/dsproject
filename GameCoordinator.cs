@@ -39,8 +39,7 @@ namespace dsproject
             _NetworkComms = new NetworkCommunication();
             _GameState = gameState;
 
-            Random rnd = new Random();
-            _UniqueID = rnd.Next(1, 1000000);
+            _UniqueID = (_NetworkComms.SenderAddress + _NetworkComms.SenderPort).GetHashCode();
             _TurnInfoMessageNumber = 1;
             _ResponseMessageNumber = 1;
             _AdvertiseLobbyMessageNumber = 1;

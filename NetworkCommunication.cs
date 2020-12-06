@@ -13,6 +13,8 @@ namespace dsproject
 {
     internal class NetworkCommunication
     {
+        public string SenderAddress { get; private set; }
+        public string SenderPort { get; private set; }
         private UdpClient _SendingClient { get; set; }
         private UdpClient _ReceiveClient { get; set; }
         private string multicastGroupAddress;
@@ -40,6 +42,9 @@ namespace dsproject
 
             _SendingClient = new UdpClient();
             _SendingClient.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, opt);
+
+            SenderAddress = ((IPEndPoint) _SendingClient.Client.LocalEndPoint)?.Address.ToString();
+            SenderPort = ((IPEndPoint) _SendingClient.Client.LocalEndPoint)?.Port.ToString();
 
             _joined = true;
         }
