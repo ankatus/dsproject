@@ -12,6 +12,7 @@ namespace dsproject
 {
     internal class GameCoordinator
     {
+        private readonly Logger _logger;
         private NetworkCommunication _NetworkComms { get; set; }
         private GameState _GameState { get; set; }
         private int _UniqueID { get; set; }
@@ -31,7 +32,6 @@ namespace dsproject
         private readonly string multicastGroupAddress = "239.0.0.100";
         private readonly int multicastGroupPort = 55000;
 
-
         public ConcurrentQueue<EventInfo> EventQueue { get; set; }
 
         public GameCoordinator(GameState gameState)
@@ -44,6 +44,8 @@ namespace dsproject
             _ResponseMessageNumber = 1;
             _AdvertiseLobbyMessageNumber = 1;
             _JoinLobbyMessageNumber = 1;
+
+            _logger = new Logger("log_" + _UniqueID);
 
             TurnInfoMessages = new ConcurrentQueue<TurnInfoMessage>();
             ResponseMessages = new ConcurrentQueue<ResponseMessage>();
@@ -64,7 +66,7 @@ namespace dsproject
             _LobbyInfo = new LobbyInfo();
 
             bool lobbyAvailable = false;
-            Logger.Log("Looking for available lobby...");
+            _logger.Log("Looking for available lobby...");
             sw.Start();
             //Look for other advertising their lobby and check if size matches
             while (sw.ElapsedMilliseconds < 2000)
@@ -86,11 +88,11 @@ namespace dsproject
             }
             sw.Reset();
 
-
+            PlayerInfo localPlayerInfo = new PlayerInfo { PlayerID = _UniqueID, PlayerName = name };
 
             if (lobbyAvailable)
             {
-                Logger.Log("Available lobby found, trying to join it...");
+                _logger.Log("Available lobby found, trying to join it...");
                 //Available lobby found, try to join it
                 int hostID = 0;
                 while (true)
@@ -110,7 +112,7 @@ namespace dsproject
                             {
                                 //Lobby full, we can proceed initiating game                            
                                 _LobbyInfo = receivedMsg.LobbyInfo;
-                                Logger.Log("Lobby is now full");
+                                _logger.Log("Lobby is now full");
                                 break;
                             }
                         }
@@ -126,7 +128,7 @@ namespace dsproject
                                 {
                                     //We are in this lobby so we can set hostID
                                     hostID = receivedMsg.Sender;
-                                    Logger.Log("We are added to lobby");
+                                    _logger.Log("We are added to lobby");
                                 }
                             }
 
@@ -141,7 +143,7 @@ namespace dsproject
                                     Receiver = receivedMsg.Sender
                                 };
 
-                                Logger.Log("Sent request to join lobby");
+                                _logger.Log("Sent request to join lobby");
                                 _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(joinLobbyMessage));
                                 _JoinLobbyMessageNumber++;
                             }
@@ -155,10 +157,11 @@ namespace dsproject
             }
             else
             {
-                Logger.Log("No available lobby found, creating own lobby...");
+                _logger.Log("No available lobby found, creating own lobby...");
                 //Lobby not available
                 //Create own lobby          
-                _LobbyInfo.Players.Add(new PlayerInfo { PlayerID = _UniqueID, PlayerName = name });
+
+                _LobbyInfo.Players.Add(localPlayerInfo);
 
                 string advertiseLobbyMessageID = _AdvertiseLobbyMessageID;
                 _AdvertiseLobbyMessageNumber++;
@@ -175,7 +178,7 @@ namespace dsproject
                 //Advertise lobby until lobby full
                 while (_LobbyInfo.Players.Count < lobbySize)
                 {
-                    Logger.Log("Sent lobby advertisement");
+                    _logger.Log("Sent lobby advertisement");
                     _NetworkComms.SendMessage(advertiseLobbyMessageBytes);
 
                     Thread.Sleep(500);
@@ -188,7 +191,7 @@ namespace dsproject
                         if (joinLobbyMessageAvailable)
                         {
                             //Log message
-                            Logger.Log("Received response to lobby advertisement from " + joinLobbyMessage.Name + " " + joinLobbyMessage.Sender);
+                            _logger.Log("Received response to lobby advertisement from " + joinLobbyMessage.Name + " " + joinLobbyMessage.Sender);
 
                             //Check if player is already in lobby
                             if (IsThisPlayerInLobby(joinLobbyMessage.Sender) == false)
@@ -217,9 +220,6 @@ namespace dsproject
                 }
             }
 
-            //Sort player list so that first one has smallest ID
-            _LobbyInfo.Players.Sort((PlayerInfo a, PlayerInfo b) => { return a.PlayerID.CompareTo(b.PlayerID); });
-
             //Search smallest playerID
             int smallestPlayerID = int.MaxValue;
             foreach (PlayerInfo info in _LobbyInfo.Players)
@@ -240,7 +240,7 @@ namespace dsproject
             }
 
             Debug.WriteLine("Lobby is full");
-            Debug.WriteLine("Local player: " + _LobbyInfo.Players.Find(player => player.PlayerID == _UniqueID).ToString());
+            Debug.WriteLine("Local player: " + localPlayerInfo.ToString());
             Debug.WriteLine("Players:");
             foreach (PlayerInfo info in _LobbyInfo.Players)
             {

@@ -6,12 +6,23 @@ namespace dsproject
 {
     public class Logger
     {
-        private const string LOGFILE_RELATIVE_PATH = "log.txt";
+        private readonly string _logName;
 
-        public static void Log(string message)
+        public Logger(string logName)
         {
-            var path = Directory.GetCurrentDirectory() + @"\log.txt";
-            using var stream = File.AppendText(LOGFILE_RELATIVE_PATH);
+            _logName = logName;
+        }
+
+        public void Log(string message)
+        {
+            Log(message, _logName);
+        }
+
+        public static void Log(string message, string fileName)
+        {
+            var logFile = fileName + ".txt";
+            var path = Directory.GetCurrentDirectory() + @"\" + logFile;
+            using var stream = File.AppendText(path);
             stream.WriteLine(DateTime.Now.ToString("yyyy-M-d H:mm:ss", CultureInfo.InvariantCulture) + ": " + message);
         }
     }
