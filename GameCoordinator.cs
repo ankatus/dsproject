@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace dsproject
 {
-    internal class GameCoordinator : ICoordinator
+    internal class GameCoordinator
     {
         private NetworkCommunication _NetworkComms { get; set; }
         private GameState _GameState { get; set; }
@@ -42,10 +42,11 @@ namespace dsproject
             Task.Run(MessageReceiver);
         }
 
-        public LobbyInfo JoinGame(string name, int lobbySize)
+        public LobbyInfo JoinGame(string name, int lobbySize, int interfaceIndex)
         {
             LobbyInfo lobbyInfo = new LobbyInfo();
 
+            _NetworkComms.JoinGroup(interfaceIndex);
             _NetworkComms.StartReceiving();
 
             CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();

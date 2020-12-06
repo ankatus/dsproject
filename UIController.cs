@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net.NetworkInformation;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using ConsoleKey = System.ConsoleKey;
 
 namespace dsproject
 {
@@ -14,12 +12,12 @@ namespace dsproject
     internal class UIController
     {
         private readonly Display _display;
-        private readonly View _view;
-        private readonly GameState _gameState;
         private readonly GameCoordinator _gameCoordinator;
+        private readonly GameState _gameState;
+        private readonly View _view;
         private ConsoleKey? _input;
-        private bool _selectingWildcardColor; // Special state for when the player is selecting a color for a wildcard
         private int _selectedWildCardHandIndex;
+        private bool _selectingWildcardColor; // Special state for when the player is selecting a color for a wildcard
         private bool _winTransmitted;
 
         public UIController(Display display, GameState gameState, GameCoordinator gameCoordinator)
@@ -42,14 +40,26 @@ namespace dsproject
             Console.SetCursorPosition(prompt.Length, 0);
             var name = Console.ReadLine();
 
-            //_display.Clear();
-            //_display.WriteString("Select Interface:", 0, 0);
-            //var rows = ShowInterfaces(1, 0);
-            //_display.Update();
-            //Console.SetCursorPosition(0, rows);
-            //var index = Console.ReadKey(true);
 
-            int players = 0;
+            int index;
+            while (true)
+            {
+                _display.Clear();
+                _display.WriteString("Select Interface:", 0, 0);
+                var rows = ShowInterfaces(1, 0);
+                _display.Update();
+                Console.SetCursorPosition(0, rows);
+                index = GetInterfaceIndex(Console.ReadKey(true).Key);
+
+                if (index > -1) break;
+
+                _display.Clear();
+                _display.WriteString("Not a valid index!", 0, 0);
+                _display.Update();
+                Thread.Sleep(1000);
+            }
+
+            int players;
             while (true)
             {
                 prompt = "Group size (2-10): ";
@@ -64,22 +74,26 @@ namespace dsproject
                 _display.Clear();
                 _display.WriteString("Not a valid group size!", 0, 0);
                 _display.Update();
-                Thread.Sleep(2000);
+                Thread.Sleep(1000);
             }
-
-
-            //prompt = "Group address: ";
-            //_display.Clear();
-            //_display.WriteString(prompt, 0, 0);
-            //_display.Update();
-            //Console.SetCursorPosition(prompt.Length, 0);
-            //var answer = Console.ReadLine();
 
             _display.Clear();
             _display.WriteString("Joining game...", 0, 0);
             _display.Update();
 
-            var lobbyInfo = _gameCoordinator.JoinGame(name, players);
+            try
+            {
+                _gameCoordinator.JoinGame(name, players, index);
+            }
+            catch (Exception)
+            {
+                _display.Clear();
+                _display.WriteString("Error joining game! Exiting...", 0, 0);
+                _display.Update();
+                Thread.Sleep(2000);
+                return;
+            }
+
             _view.LocalPlayerId = _gameState.LocalPlayer.PlayerID;
             _view.LocalPlayerName = _gameState.LocalPlayer.PlayerName;
 
@@ -173,6 +187,7 @@ namespace dsproject
                                         Debug.WriteLine("Played first card");
                                         continue;
                                     }
+
                                     // Dealer's turn to play first card
                                     _view.Message = "You are the dealer! Press space to flip the first card,";
                                     _view.MessageColor = ConsoleColor.Green;
@@ -189,6 +204,7 @@ namespace dsproject
                                         _view.ResetVisibleIndex();
                                         continue;
                                     }
+
                                     _view.Message = "You can't play any cards, press space to end turn.";
                                     _view.MessageColor = ConsoleColor.Yellow;
                                     _view.Draw();
@@ -196,8 +212,15 @@ namespace dsproject
                                 }
 
                                 // "Normal" turn, can choose a card to play or draw a new card
-                                if (!_gameState.CardDrawn) _view.Message = "Your turn! Select a card to play or press space to draw a new card.";
-                                else _view.Message = "Your turn! Select a card to play.";
+                                if (!_gameState.CardDrawn)
+                                {
+                                    _view.Message =
+                                        "Your turn! Select a card to play or press space to draw a new card.";
+                                }
+                                else
+                                {
+                                    _view.Message = "Your turn! Select a card to play.";
+                                }
 
                                 _view.MessageColor = ConsoleColor.Green;
 
@@ -210,7 +233,11 @@ namespace dsproject
                                     {
                                         case ConsoleKey.Spacebar:
                                             // Draw card
-                                            if (_gameState.CardDrawn) break;
+                                            if (_gameState.CardDrawn)
+                                            {
+                                                break;
+                                            }
+
                                             _gameState.PlayerDrawCard();
                                             break;
                                         case ConsoleKey.D1:
@@ -221,7 +248,6 @@ namespace dsproject
                                             PlayCard(pressed);
                                             break;
                                     }
-
                                 }
 
                                 _view.Draw();
@@ -235,6 +261,7 @@ namespace dsproject
                                     _view.ResetVisibleIndex();
                                     continue;
                                 }
+
                                 _view.Message = "Turn done! Press space to send.";
                                 _view.MessageColor = ConsoleColor.Red;
                                 _view.Draw();
@@ -267,6 +294,7 @@ namespace dsproject
                                     _gameState.DealSelf();
                                     continue;
                                 }
+
                                 _view.Message = "Press space to deal yourself a hand.";
                                 _view.MessageColor = ConsoleColor.Green;
                                 _view.Draw();
@@ -279,6 +307,7 @@ namespace dsproject
                                     _gameCoordinator.EndTurn();
                                     continue;
                                 }
+
                                 _view.Message = "Turn done! Press space to send.";
                                 _view.MessageColor = ConsoleColor.Red;
                                 _view.Draw();
@@ -286,6 +315,7 @@ namespace dsproject
                             default:
                                 throw new ArgumentOutOfRangeException();
                         }
+
                         break;
                     case GameStatus.Won:
                         if (!_winTransmitted)
@@ -293,6 +323,7 @@ namespace dsproject
                             _gameCoordinator.EndTurn();
                             _winTransmitted = true;
                         }
+
                         _view.Message = "You've Won!";
                         _view.MessageColor = ConsoleColor.Green;
                         _view.Draw();
@@ -317,7 +348,10 @@ namespace dsproject
             {
                 var keyPress = Console.ReadKey(true);
 
-                if (keyPress.Key == ConsoleKey.Enter) break;
+                if (keyPress.Key == ConsoleKey.Enter)
+                {
+                    break;
+                }
             }
         }
 
@@ -334,7 +368,9 @@ namespace dsproject
                 ConsoleKey.D3 and not
                 ConsoleKey.D4 and not
                 ConsoleKey.D5)
+            {
                 return;
+            }
 
             // ReSharper disable once SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
             var cardIndex = numberKey switch
@@ -344,14 +380,20 @@ namespace dsproject
                 ConsoleKey.D3 => 2 + _view.VisibleIndex * 5,
                 ConsoleKey.D4 => 3 + _view.VisibleIndex * 5,
                 ConsoleKey.D5 => 4 + _view.VisibleIndex * 5,
-                _ => throw new InvalidOperationException(),
+                _ => throw new InvalidOperationException()
             };
 
-            if (cardIndex > _view.Hand.Count - 1) return;
+            if (cardIndex > _view.Hand.Count - 1)
+            {
+                return;
+            }
 
             var card = _gameState.LocalPlayer.Hand[cardIndex];
 
-            if (!_gameState.CanPlayCard(card)) return;
+            if (!_gameState.CanPlayCard(card))
+            {
+                return;
+            }
 
             if (card.Type == CardType.Wild)
             {
@@ -370,7 +412,9 @@ namespace dsproject
                 ConsoleKey.D2 and not
                 ConsoleKey.D3 and not
                 ConsoleKey.D4)
+            {
                 return;
+            }
 
             // ReSharper disable once SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
             var cardIndex = numberKey switch
@@ -379,14 +423,20 @@ namespace dsproject
                 ConsoleKey.D2 => 1 + _view.VisibleIndex * 5,
                 ConsoleKey.D3 => 2 + _view.VisibleIndex * 5,
                 ConsoleKey.D4 => 3 + _view.VisibleIndex * 5,
-                _ => throw new InvalidOperationException(),
+                _ => throw new InvalidOperationException()
             };
 
-            if (cardIndex > _view.Hand.Count - 1) return;
+            if (cardIndex > _view.Hand.Count - 1)
+            {
+                return;
+            }
 
             var card = _view.Hand[cardIndex];
 
-            if (_gameState.PlayWildCard(card, _selectedWildCardHandIndex)) _selectingWildcardColor = false;
+            if (_gameState.PlayWildCard(card, _selectedWildCardHandIndex))
+            {
+                _selectingWildcardColor = false;
+            }
         }
 
         private int ShowInterfaces(int row, int col)
@@ -396,6 +446,9 @@ namespace dsproject
             var rowIndex = row;
             for (var i = 0; i < networkInterfaces.Length; i++)
             {
+                if (!networkInterfaces[i].SupportsMulticast) continue;
+                if (!networkInterfaces[i].Supports(NetworkInterfaceComponent.IPv4)) continue;
+
                 _display.WriteString(networkInterfaces[i].Name + " " + i, rowIndex, col);
                 rowIndex++;
             }
@@ -403,7 +456,42 @@ namespace dsproject
             return rowIndex;
         }
 
+        private static int GetInterfaceIndex(ConsoleKey numberKey)
+        {
+            var numberKeys = new List<ConsoleKey>
+            {
+                ConsoleKey.D0,
+                ConsoleKey.D1,
+                ConsoleKey.D2,
+                ConsoleKey.D3,
+                ConsoleKey.D4,
+                ConsoleKey.D5,
+                ConsoleKey.D6,
+                ConsoleKey.D7,
+                ConsoleKey.D8,
+                ConsoleKey.D9
+            };
 
+            var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+
+            var allowedKeys = new List<(ConsoleKey key, int index)>();
+
+            for (var i = 0; i < networkInterfaces.Length; i++)
+            {
+                if (i == numberKeys.Count) break;
+                if (!networkInterfaces[i].SupportsMulticast) continue;
+                if (!networkInterfaces[i].Supports(NetworkInterfaceComponent.IPv4)) continue;
+
+                allowedKeys.Add((numberKeys[i], networkInterfaces[i].GetIPProperties().GetIPv4Properties().Index));
+            }
+
+            foreach (var (key, index) in allowedKeys)
+            {
+                if (key == numberKey) return index;
+            }
+
+            return -1;
+        }
 
         private void UpdateView()
         {

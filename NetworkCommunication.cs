@@ -19,23 +19,32 @@ namespace dsproject
         private readonly int multicastGroupPort = 55000;
         private Queue<byte[]> _ReceivedPackets { get; set; }
         private bool receiveLoopRunning { get; set; }
+        private bool _joined;
 
 
         public NetworkCommunication()
         {
             _ReceivedPackets = new Queue<byte[]>();
+        }
 
-            _SendingClient = new UdpClient();
-
+        public void JoinGroup(int interfaceIndex)
+        {
             IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, 55000);
             _ReceiveClient = new UdpClient();
+            var opt = new MulticastOption(IPAddress.Parse(multicastGroupAddress), interfaceIndex);
             _ReceiveClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            _ReceiveClient.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, opt);
             _ReceiveClient.Client.Bind(localEndPoint);
-            _ReceiveClient.JoinMulticastGroup(IPAddress.Parse(multicastGroupAddress));
+
+            _SendingClient = new UdpClient();
+            _SendingClient.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, opt);
+
+            _joined = true;
         }
 
         public void SendMessage(byte[] data)
         {
+            if (!_joined) return;
             IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(multicastGroupAddress), multicastGroupPort);
             _SendingClient.Send(data, data.Length, ipEndPoint);
             Debug.WriteLine("Sent message:" + Encoding.UTF8.GetString(data));
@@ -53,6 +62,8 @@ namespace dsproject
 
         public void StartReceiving()
         {
+            if (!_joined) return;
+
             if (receiveLoopRunning == false)
             {
                 Action action = () =>
