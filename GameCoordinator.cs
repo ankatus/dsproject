@@ -86,7 +86,7 @@ namespace dsproject
             }
             sw.Reset();
 
-            PlayerInfo localPlayerInfo = new PlayerInfo { PlayerID = _UniqueID, PlayerName = name };
+
 
             if (lobbyAvailable)
             {
@@ -158,8 +158,7 @@ namespace dsproject
                 Logger.Log("No available lobby found, creating own lobby...");
                 //Lobby not available
                 //Create own lobby          
-
-                _LobbyInfo.Players.Add(localPlayerInfo);
+                _LobbyInfo.Players.Add(new PlayerInfo { PlayerID = _UniqueID, PlayerName = name });
 
                 string advertiseLobbyMessageID = _AdvertiseLobbyMessageID;
                 _AdvertiseLobbyMessageNumber++;
@@ -218,6 +217,9 @@ namespace dsproject
                 }
             }
 
+            //Sort player list so that first one has smallest ID
+            _LobbyInfo.Players.Sort((PlayerInfo a, PlayerInfo b) => { return a.PlayerID.CompareTo(b.PlayerID); });
+
             //Search smallest playerID
             int smallestPlayerID = int.MaxValue;
             foreach (PlayerInfo info in _LobbyInfo.Players)
@@ -238,7 +240,7 @@ namespace dsproject
             }
 
             Debug.WriteLine("Lobby is full");
-            Debug.WriteLine("Local player: " + localPlayerInfo.ToString());
+            Debug.WriteLine("Local player: " + _LobbyInfo.Players.Find(player => player.PlayerID == _UniqueID).ToString());
             Debug.WriteLine("Players:");
             foreach (PlayerInfo info in _LobbyInfo.Players)
             {
