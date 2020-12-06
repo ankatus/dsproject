@@ -58,6 +58,34 @@ namespace dsproject
                 _display.Update();
                 Thread.Sleep(1000);
             }
+            
+            _display.Clear();
+            prompt = "Group address (empty for default): ";
+            _display.WriteString(prompt, 0, 0);
+            _display.Update();
+            Console.SetCursorPosition(prompt.Length, 0);
+            var groupAddress = Console.ReadLine() ?? "";
+            int groupPort = 0;
+
+            if (groupAddress?.Length != 0)
+            {
+                while (true)
+                {
+                    _display.Clear();
+                    prompt = "Group port: ";
+                    _display.WriteString(prompt, 0, 0);
+                    _display.Update();
+                    Console.SetCursorPosition(prompt.Length, 0);
+                    var groupPortString = Console.ReadLine();
+
+                    if (int.TryParse(groupPortString, out groupPort)) break;
+                    
+                    _display.Clear();
+                    _display.WriteString("Not a valid port!", 0, 0);
+                    _display.Update();
+                    Thread.Sleep(1000);
+                }
+            }
 
             int players;
             while (true)
@@ -83,7 +111,9 @@ namespace dsproject
 
             try
             {
-                _gameCoordinator.JoinGame(name, players, index);
+                if (groupAddress.Length == 0)_gameCoordinator.JoinGame(name, players, index);
+                else _gameCoordinator.JoinGame(name, players, index, groupAddress, groupPort);
+                
             }
             catch (Exception)
             {

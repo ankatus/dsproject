@@ -21,6 +21,8 @@ namespace dsproject
         private ConcurrentQueue<JoinGameMessage> JoinGameMessages { get; set; }
         private ConcurrentQueue<TurnInfoMessage> TurnInfoMessages { get; set; }
         private ConcurrentQueue<ResponseMessage> ResponseMessages { get; set; }
+        private readonly string multicastGroupAddress = "239.0.0.100";
+        private readonly int multicastGroupPort = 55000;
 
         public ConcurrentQueue<EventInfo> EventQueue { get; set; }
 
@@ -42,11 +44,11 @@ namespace dsproject
             Task.Run(MessageReceiver);
         }
 
-        public LobbyInfo JoinGame(string name, int lobbySize, int interfaceIndex)
+        public LobbyInfo JoinGame(string name, int lobbySize, int interfaceIndex, string address, int port)
         {
             LobbyInfo lobbyInfo = new LobbyInfo();
 
-            _NetworkComms.JoinGroup(interfaceIndex);
+            _NetworkComms.JoinGroup(interfaceIndex, address, port);
             _NetworkComms.StartReceiving();
 
             CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
@@ -152,6 +154,10 @@ namespace dsproject
             return lobbyInfo;
         }
 
+        public LobbyInfo JoinGame(string name, int lobbySize, int interfaceIndex)
+        {
+            return JoinGame(name, lobbySize, interfaceIndex, multicastGroupAddress, multicastGroupPort);
+        }
         public void EndTurn()
         {
             Debug.WriteLine("Ending turn...");

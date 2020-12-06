@@ -15,8 +15,8 @@ namespace dsproject
     {
         private UdpClient _SendingClient { get; set; }
         private UdpClient _ReceiveClient { get; set; }
-        private readonly string multicastGroupAddress = "239.0.0.100";
-        private readonly int multicastGroupPort = 55000;
+        private string multicastGroupAddress;
+        private int multicastGroupPort;
         private Queue<byte[]> _ReceivedPackets { get; set; }
         private bool receiveLoopRunning { get; set; }
         private bool _joined;
@@ -27,8 +27,10 @@ namespace dsproject
             _ReceivedPackets = new Queue<byte[]>();
         }
 
-        public void JoinGroup(int interfaceIndex)
+        public void JoinGroup(int interfaceIndex, string address, int port)
         {
+            multicastGroupAddress = address;
+            multicastGroupPort = port;
             IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, 55000);
             _ReceiveClient = new UdpClient();
             var opt = new MulticastOption(IPAddress.Parse(multicastGroupAddress), interfaceIndex);
