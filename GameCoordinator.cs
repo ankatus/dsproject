@@ -189,7 +189,7 @@ namespace dsproject
                         if (joinLobbyMessageAvailable)
                         {
                             //Log message
-                            Debug.WriteLine("Received response to lobby advertise: " + JsonSerializer.Serialize(joinLobbyMessage));
+                            Logger.Log("Received response to lobby advertisement from " + joinLobbyMessage.Name + " " + joinLobbyMessage.Sender);
 
                             //Check if player is already in lobby
                             if (IsThisPlayerInLobby(joinLobbyMessage.Sender) == false)
@@ -238,13 +238,14 @@ namespace dsproject
             }
 
             Debug.WriteLine("Lobby is full");
+            Debug.WriteLine("Local player: " + localPlayerInfo.ToString());
             Debug.WriteLine("Players:");
             foreach (PlayerInfo info in _LobbyInfo.Players)
             {
                 Debug.WriteLine(info.ToString());
             }
             Debug.WriteLine("Initiating game...");
-            _GameState.InitGame(_LobbyInfo.Players, localPlayerInfo, smallestPlayerID);
+            _GameState.InitGame(_LobbyInfo.Players, _LobbyInfo.Players.Find(player => player.PlayerID == _UniqueID), smallestPlayerID);
             Debug.WriteLine("Initing ready");
 
             return _LobbyInfo;
