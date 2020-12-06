@@ -61,13 +61,13 @@ namespace dsproject
             _NetworkComms.JoinGroup(interfaceIndex, address, port);
             _NetworkComms.StartReceiving();
 
+            Stopwatch sw = new Stopwatch();
             _LobbyInfo = new LobbyInfo();
-            bool joinedLobby = false;
-            int hostID = 0;
 
             bool lobbyAvailable = false;
-            Stopwatch sw = new Stopwatch();
+            Logger.Log("Looking for available lobby...");
             sw.Start();
+            //Look for other advertising their lobby and check if size matches
             while (sw.ElapsedMilliseconds < 2000)
             {
                 bool messageAvailable = AdvertiseLobbyMessages.TryDequeue(out AdvertiseLobbyMessage receivedMsg);
@@ -85,72 +85,80 @@ namespace dsproject
                     Thread.Sleep(100);
                 }
             }
+            sw.Reset();
 
             PlayerInfo localPlayerInfo = new PlayerInfo { PlayerID = _UniqueID, PlayerName = name };
 
             if (lobbyAvailable)
             {
-                //Try to join lobby that someone else is advertising
+                Logger.Log("Available lobby found, try to join it");
+                //Available lobby found, try to join it
+                int hostID = 0;
+                sw.Start();
                 while (sw.ElapsedMilliseconds < 10000)
                 {
                     bool messageAvailable = AdvertiseLobbyMessages.TryDequeue(out AdvertiseLobbyMessage receivedMsg);
 
                     if (messageAvailable)
                     {
+                        //Check if advertised lobby size matches
+                        if (receivedMsg.LobbySize != lobbySize) { continue; }
+
+                        //Check if lobby advertisement was from our host
                         if (receivedMsg.Sender == hostID)
                         {
+                            //Check if lobby is now full
                             if (receivedMsg.LobbyInfo.Players.Count == lobbySize)
                             {
+                                //Lobby full, we can proceed initiating game
                                 _LobbyInfo = receivedMsg.LobbyInfo;
                                 break;
                             }
                         }
                         else
                         {
-                            //Check if advertised lobby size matches
-                            if (receivedMsg.LobbySize == lobbySize)
+                            //Log message
+                            Debug.WriteLine("Received correct AdvertiseLobbyMessages: " + JsonSerializer.Serialize(receivedMsg));
+
+                            //Check if we are already in lobby
+                            foreach (PlayerInfo info in receivedMsg.LobbyInfo.Players)
                             {
-                                //Log message
-                                Debug.WriteLine("Received correct AdvertiseLobbyMessages: " + JsonSerializer.Serialize(receivedMsg));
-
-                                //Check if we are already in lobby
-                                foreach (PlayerInfo info in receivedMsg.LobbyInfo.Players)
+                                if (info.PlayerID == _UniqueID)
                                 {
-                                    if (info.PlayerID == _UniqueID)
-                                    {
-                                        joinedLobby = true;
-                                        hostID = receivedMsg.Sender;
-                                    }
-                                }
-
-                                if (joinedLobby == false)
-                                {
-                                    JoinLobbyMessage joinLobbyMessage = new JoinLobbyMessage()
-                                    {
-                                        Sender = _UniqueID,
-                                        MsgID = _JoinLobbyMessageID,
-                                        Name = name,
-                                        Receiver = receivedMsg.Sender
-                                    };
-
-                                    _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(joinLobbyMessage));
-                                    _JoinLobbyMessageNumber++;
+                                    //We are in this lobby so we can set hostID
+                                    hostID = receivedMsg.Sender;
                                 }
                             }
+
+                            //If we don't have host try to join game
+                            if (hostID == 0)
+                            {
+                                JoinLobbyMessage joinLobbyMessage = new JoinLobbyMessage()
+                                {
+                                    Sender = _UniqueID,
+                                    MsgID = _JoinLobbyMessageID,
+                                    Name = name,
+                                    Receiver = receivedMsg.Sender
+                                };
+
+                                _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(joinLobbyMessage));
+                                _JoinLobbyMessageNumber++;
+                            }
                         }
+
                     }
                     else
                     {
                         Thread.Sleep(100);
                     }
                 }
-
+                sw.Reset();
             }
             else
             {
+                Logger.Log("No available lobby found, create own lobby");
+                //Lobby not available
                 //Create own lobby          
-
-                //Add local player to lobby
 
                 _LobbyInfo.Players.Add(localPlayerInfo);
 
@@ -171,7 +179,7 @@ namespace dsproject
                 {
                     _NetworkComms.SendMessage(advertiseLobbyMessageBytes);
 
-                    Thread.Sleep(100);
+                    Thread.Sleep(500);
 
                     bool joinLobbyMessageAvailable;
                     do
@@ -183,43 +191,32 @@ namespace dsproject
                             //Log message
                             Debug.WriteLine("Received response to lobby advertise: " + JsonSerializer.Serialize(joinLobbyMessage));
 
-                            bool newPlayer = true;
-
-                            //Check if player wanting to join is already in lobby
-                            foreach (PlayerInfo info in _LobbyInfo.Players)
+                            //Check if player is already in lobby
+                            if (IsThisPlayerInLobby(joinLobbyMessage.Sender) == false)
                             {
-                                if (info.PlayerID == joinLobbyMessage.Sender)
-                                {
-                                    newPlayer = false;
-                                }
-                            }
-
-                            //Add new player to lobby
-                            if (newPlayer)
-                            {
+                                //Add new player to lobby
                                 PlayerInfo newPlayerInfo = new PlayerInfo { PlayerID = joinLobbyMessage.Sender, PlayerName = joinLobbyMessage.Name };
                                 _LobbyInfo.Players.Add(newPlayerInfo);
 
-                                //Update lobbyInfo
+                                //Update lobbyInfo in advertisement message
                                 advertiseLobbyMessage.LobbyInfo = _LobbyInfo;
+
+                                //Serialize advertisement message
                                 advertiseLobbyMessageBytes = JsonSerializer.SerializeToUtf8Bytes(advertiseLobbyMessage);
 
                                 Debug.WriteLine("New player found and added to lobby: " + newPlayerInfo.ToString());
                             }
                         }
-
                     } while (joinLobbyMessageAvailable);
                 }
 
+                //Lobby is now full, send some extra advertisements so all other nodes realize that lobby is full
                 for (int i = 0; i < 10; i++)
                 {
                     _NetworkComms.SendMessage(advertiseLobbyMessageBytes);
                     Thread.Sleep(200);
                 }
             }
-
-            //Sort player list so that first one has smallest ID
-            _LobbyInfo.Players.Sort((PlayerInfo a, PlayerInfo b) => { return a.PlayerID.CompareTo(b.PlayerID); });
 
             //Search smallest playerID
             int smallestPlayerID = int.MaxValue;
