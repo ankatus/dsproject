@@ -220,6 +220,9 @@ namespace dsproject
                 }
             }
 
+            //Sort player list so that first one has smallest ID
+            _LobbyInfo.Players.Sort((PlayerInfo a, PlayerInfo b) => { return a.PlayerID.CompareTo(b.PlayerID); });
+
             //Search smallest playerID
             int smallestPlayerID = int.MaxValue;
             foreach (PlayerInfo info in _LobbyInfo.Players)
@@ -239,16 +242,15 @@ namespace dsproject
                 }
             }
 
-            Debug.WriteLine("Lobby is full");
-            Debug.WriteLine("Local player: " + localPlayerInfo.ToString());
-            Debug.WriteLine("Players:");
+            _logger.Log("Local player: " + localPlayerInfo.ToString());
+            _logger.Log("Players:");
             foreach (PlayerInfo info in _LobbyInfo.Players)
             {
-                Debug.WriteLine(info.ToString());
+                _logger.Log(info.ToString());
             }
-            Debug.WriteLine("Initiating game...");
+            _logger.Log("Initiating game...");
             _GameState.InitGame(_LobbyInfo.Players, _LobbyInfo.Players.Find(player => player.PlayerID == _UniqueID), smallestPlayerID);
-            Debug.WriteLine("Initing ready");
+            _logger.Log("Initing ready");
 
             return _LobbyInfo;
         }
