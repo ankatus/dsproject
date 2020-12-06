@@ -460,7 +460,7 @@ namespace dsproject
             // Same color
             if (card.Color == topCard.Color) return true;
 
-            if (topCard.Type is CardType.Number)
+            if (topCard.Type is CardType.Number && card.Type is CardType.Number)
             {
                 // Same number
                 if (card.Number == topCard.Number) return true;

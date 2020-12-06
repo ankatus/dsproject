@@ -141,7 +141,7 @@ namespace dsproject
                     _view.Draw();
 
                     _display.Update();
-                    
+
                     Thread.Sleep(100);
 
                     continue;
@@ -196,7 +196,9 @@ namespace dsproject
                                 }
 
                                 // "Normal" turn, can choose a card to play or draw a new card
-                                _view.Message = "Your turn to play a card!";
+                                if (!_gameState.CardDrawn) _view.Message = "Your turn! Select a card to play or press space to draw a new card.";
+                                else _view.Message = "Your turn! Select a card to play.";
+
                                 _view.MessageColor = ConsoleColor.Green;
 
                                 // Check for input first
