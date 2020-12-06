@@ -19,6 +19,7 @@ namespace dsproject
         private readonly GameCoordinator _gameCoordinator;
         private ConsoleKey? _input;
         private bool _selectingWildcardColor; // Special state for when the player is selecting a color for a wildcard
+        private bool _winTransmitted;
 
         public UIController(Display display, GameState gameState, GameCoordinator gameCoordinator)
         {
@@ -28,6 +29,7 @@ namespace dsproject
             _gameCoordinator = gameCoordinator;
             _input = null;
             _selectingWildcardColor = false;
+            _winTransmitted = false;
         }
 
         public void JoinGame()
@@ -87,6 +89,8 @@ namespace dsproject
         {
             while (true)
             {
+                _display.Clear();
+
                 // Set this in case console is bugging out
                 Console.CursorVisible = false;
 
@@ -101,9 +105,6 @@ namespace dsproject
                     _input = null;
                 }
 
-                _display.Clear();
-                UpdateView();
-
                 if (_selectingWildcardColor)
                 {
                     // Check for card selection
@@ -117,7 +118,7 @@ namespace dsproject
                             case ConsoleKey.D2:
                             case ConsoleKey.D3:
                             case ConsoleKey.D4:
-                                PlayCard(pressed);
+                                PlayWildCard(pressed);
                                 break;
                         }
                     }
@@ -137,8 +138,12 @@ namespace dsproject
                     _view.MessageColor = ConsoleColor.Green;
                     _view.Draw();
 
+                    _display.Update();
+
                     continue;
                 }
+
+                UpdateView();
 
                 switch (_gameState.GameStatus)
                 {
@@ -166,7 +171,7 @@ namespace dsproject
                                     }
                                     // Dealer's turn to play first card
                                     _view.Message = "You are the dealer! Press space to flip the first card,";
-                                    _view.MessageColor = ConsoleColor.Yellow;
+                                    _view.MessageColor = ConsoleColor.Green;
                                     _view.Draw();
                                     break;
                                 }
@@ -277,6 +282,11 @@ namespace dsproject
                         }
                         break;
                     case GameStatus.Won:
+                        if (!_winTransmitted)
+                        {
+                            _gameCoordinator.EndTurn();
+                            _winTransmitted = true;
+                        }
                         _view.Message = "You've Won!";
                         _view.MessageColor = ConsoleColor.Green;
                         _view.Draw();
@@ -343,6 +353,32 @@ namespace dsproject
             }
 
             _gameState.PlayCard(cardIndex);
+        }
+
+        private void PlayWildCard(ConsoleKey numberKey)
+        {
+            if (numberKey is not
+                ConsoleKey.D1 and not
+                ConsoleKey.D2 and not
+                ConsoleKey.D3 and not
+                ConsoleKey.D4)
+                return;
+
+            // ReSharper disable once SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
+            var cardIndex = numberKey switch
+            {
+                ConsoleKey.D1 => 0 + _view.VisibleIndex * 5,
+                ConsoleKey.D2 => 1 + _view.VisibleIndex * 5,
+                ConsoleKey.D3 => 2 + _view.VisibleIndex * 5,
+                ConsoleKey.D4 => 3 + _view.VisibleIndex * 5,
+                _ => throw new InvalidOperationException(),
+            };
+
+            if (cardIndex > _view.Hand.Count) return;
+
+            var card = _gameState.LocalPlayer.Hand[cardIndex];
+
+            if (_gameState.PlayWildCard(card, cardIndex)) _selectingWildcardColor = false;
         }
 
         private int ShowInterfaces(int row, int col)

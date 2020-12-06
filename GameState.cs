@@ -9,6 +9,7 @@ namespace dsproject
     {
         private Stack<UnoCard> _deck;
         private UnoCard _playedCard;
+        private int _playedCardIndex;
         private readonly List<UnoCard> _drawnCards;
         private int _seed;
         private bool _playAnyColor;
@@ -50,7 +51,7 @@ namespace dsproject
                 return new StateUpdateInfo { Result = StateUpdateResult.Error, ErrorString = "Unknown player" };
 
             // Update played/drawn cards
-            UpdatePlayerCards(previousTurnPlayer, previousTurn.DrawnCards, previousTurn.PlayedCard);
+            UpdatePlayerCards(previousTurnPlayer, previousTurn.DrawnCards, previousTurn.PlayedCardIndex);
             if (previousTurn.PlayedCard is not null) Pile.Push(previousTurn.PlayedCard);
             previousTurn.DrawnCards.ForEach(_ => _deck.Pop());
 
@@ -88,6 +89,7 @@ namespace dsproject
                 PlayerID = LocalPlayer.PlayerID,
                 TurnNumber = TurnNumber,
                 PlayedCard = _playedCard,
+                PlayedCardIndex = _playedCardIndex,
                 DrawnCards = new List<UnoCard>(_drawnCards),
                 NextTurnPlayerID = NextTurnPlayerId,
             };
@@ -95,6 +97,7 @@ namespace dsproject
             // Clear local turn info
             CardDrawn = false;
             _playedCard = null;
+            _playedCardIndex = -1;
             _drawnCards.Clear();
             TurnNumber++;
 
@@ -182,6 +185,7 @@ namespace dsproject
             Pile.Push(card);
             LocalPlayer.Hand.RemoveAt(cardIndex);
             _playedCard = card;
+            _playedCardIndex = cardIndex;
 
             // Check for card effects
             switch (card.Type)
@@ -219,6 +223,34 @@ namespace dsproject
             return true;
         }
 
+        public bool PlayWildCard(UnoCard card, int cardIndex)
+        {
+            if (cardIndex < 0 || cardIndex >= LocalPlayer.Hand.Count) return false;
+
+            var cardInHand = LocalPlayer.Hand[cardIndex];
+            if (cardInHand.Type is not CardType.Wild) return false;
+
+            if (card.Type is not CardType.Wild) return false;
+            if (card.Color is CardColor.White) return false;
+
+            if (!CanPlayCard(card)) return false;
+
+            Pile.Push(card);
+            LocalPlayer.Hand.RemoveAt(cardIndex);
+            _playedCard = card;
+            _playedCardIndex = cardIndex;
+            
+            if (LocalPlayer.Hand.Count == 0)
+            {
+                GameStatus = GameStatus.Won;
+            }
+
+            NextTurnPlayerId = GetNextPlayerId();
+            TurnStatus = TurnStatus.Ready;
+
+            return true;
+        }
+
         public void Reset()
         {
             CardDrawn = false;
@@ -228,6 +260,7 @@ namespace dsproject
             _drawnCards.Clear();
             LocalPlayer = null;
             _playedCard = null;
+            _playedCardIndex = -1;
             NextTurnPlayerId = 0;
             TurnNumber = 0;
             _seed = 0;
@@ -271,6 +304,7 @@ namespace dsproject
                 Pile.Push(card);
                 _drawnCards.Add(card);
                 _playedCard = card;
+                _playedCardIndex = LocalPlayer.Hand.Count - 1;
                 NextTurnPlayerId = GetNextPlayerId();
                 TurnStatus = TurnStatus.Ready;
                 break;
@@ -412,6 +446,9 @@ namespace dsproject
         {
             // Out of cards
             if (!Pile.TryPeek(out var topCard)) return false;
+
+            // Wildcard can always be played
+            if (card.Type == CardType.Wild) return true;
 
             // Same card
             if (card == topCard) return true;
@@ -591,7 +628,7 @@ namespace dsproject
             return drawnCard;
         }
 
-        private static void UpdatePlayerCards(PlayerInfo player, List<UnoCard> drawn, UnoCard played)
+        private static void UpdatePlayerCards(PlayerInfo player, List<UnoCard> drawn, int playedCardIndex)
         {
             // Add drawn cards to hand
             player.Hand.AddRange(drawn);
@@ -599,9 +636,10 @@ namespace dsproject
             // Remove played card from hand
             for (var i = 0; i < player.Hand.Count; i++)
             {
-                if (player.Hand[i] == played)
+                if (i == playedCardIndex)
                 {
                     player.Hand.RemoveAt(i);
+                    break;
                 }
             }
         }

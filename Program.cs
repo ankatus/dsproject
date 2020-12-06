@@ -17,13 +17,12 @@ namespace dsproject
 
             var ui = new UIController(display, gameState, gameCoordinator);
 
-            display.WriteString("Press any key to start game!", 49, 0);
+            display.WriteString("Press any key to start game!", 0, 0, ConsoleColor.Green);
             display.Update();
             Console.ReadKey(true);
             display.Clear();
 
             ui.JoinGame();
-
         }
     }
 }

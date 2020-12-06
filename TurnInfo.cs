@@ -6,6 +6,7 @@ namespace dsproject
     {
         public int TurnNumber { get; set; }
         public UnoCard PlayedCard { get; set; }
+        public int PlayedCardIndex { get; set; }
         public List<UnoCard> DrawnCards { get; set; }
 
         public TurnInfo()
