@@ -19,6 +19,7 @@ namespace dsproject
         private readonly GameCoordinator _gameCoordinator;
         private ConsoleKey? _input;
         private bool _selectingWildcardColor; // Special state for when the player is selecting a color for a wildcard
+        private int _selectedWildCardHandIndex;
         private bool _winTransmitted;
 
         public UIController(Display display, GameState gameState, GameCoordinator gameCoordinator)
@@ -29,6 +30,7 @@ namespace dsproject
             _gameCoordinator = gameCoordinator;
             _input = null;
             _selectingWildcardColor = false;
+            _selectedWildCardHandIndex = 0;
             _winTransmitted = false;
         }
 
@@ -128,6 +130,7 @@ namespace dsproject
                     var greenCard = new UnoCard(CardType.Wild, CardColor.Green, 0);
                     var yellowCard = new UnoCard(CardType.Wild, CardColor.Yellow, 0);
 
+                    _view.ResetVisibleIndex();
                     _view.Hand.Clear();
                     _view.Hand.Add(blueCard);
                     _view.Hand.Add(redCard);
@@ -139,6 +142,8 @@ namespace dsproject
                     _view.Draw();
 
                     _display.Update();
+                    
+                    Thread.Sleep(100);
 
                     continue;
                 }
@@ -350,6 +355,8 @@ namespace dsproject
             if (card.Type == CardType.Wild)
             {
                 _selectingWildcardColor = true;
+                _selectedWildCardHandIndex = cardIndex;
+                return;
             }
 
             _gameState.PlayCard(cardIndex);
@@ -374,11 +381,11 @@ namespace dsproject
                 _ => throw new InvalidOperationException(),
             };
 
-            if (cardIndex > _view.Hand.Count) return;
+            if (cardIndex > _view.Hand.Count - 1) return;
 
-            var card = _gameState.LocalPlayer.Hand[cardIndex];
+            var card = _view.Hand[cardIndex];
 
-            if (_gameState.PlayWildCard(card, cardIndex)) _selectingWildcardColor = false;
+            if (_gameState.PlayWildCard(card, _selectedWildCardHandIndex)) _selectingWildcardColor = false;
         }
 
         private int ShowInterfaces(int row, int col)
