@@ -479,7 +479,7 @@ namespace dsproject
                 if (!networkInterfaces[i].SupportsMulticast) continue;
                 if (!networkInterfaces[i].Supports(NetworkInterfaceComponent.IPv4)) continue;
 
-                _display.WriteString(networkInterfaces[i].Name + " " + i, rowIndex, col);
+                _display.WriteString("[ " + i + " ] " + networkInterfaces[i].Name, rowIndex, col);
                 rowIndex++;
             }
 

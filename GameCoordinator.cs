@@ -15,14 +15,22 @@ namespace dsproject
         private NetworkCommunication _NetworkComms { get; set; }
         private GameState _GameState { get; set; }
         private int _UniqueID { get; set; }
-        private uint _MsgNumber { get; set; }
-        private string _MsgID { get { return _UniqueID + "-" + _MsgNumber; } }
+        private uint _TurnInfoMessageNumber { get; set; }
+        private uint _ResponseMessageNumber { get; set; }
+        private uint _AdvertiseLobbyMessageNumber { get; set; }
+        private uint _JoinLobbyMessageNumber { get; set; }
+        private string _TurnInfoMessageID { get { return _UniqueID + "-" + _TurnInfoMessageNumber; } }
+        private string _ResponseMessageID { get { return _UniqueID + "-" + _ResponseMessageNumber; } }
+        private string _AdvertiseLobbyMessageID { get { return _UniqueID + "-" + _AdvertiseLobbyMessageNumber; } }
+        private string _JoinLobbyMessageID { get { return _UniqueID + "-" + _JoinLobbyMessageNumber; } }
         private LobbyInfo _LobbyInfo { get; set; }
-        private ConcurrentQueue<JoinGameMessage> JoinGameMessages { get; set; }
         private ConcurrentQueue<TurnInfoMessage> TurnInfoMessages { get; set; }
         private ConcurrentQueue<ResponseMessage> ResponseMessages { get; set; }
+        private ConcurrentQueue<AdvertiseLobbyMessage> AdvertiseLobbyMessages { get; set; }
+        private ConcurrentQueue<JoinLobbyMessage> JoinLobbyMessages { get; set; }
         private readonly string multicastGroupAddress = "239.0.0.100";
         private readonly int multicastGroupPort = 55000;
+
 
         public ConcurrentQueue<EventInfo> EventQueue { get; set; }
 
@@ -33,11 +41,15 @@ namespace dsproject
 
             Random rnd = new Random();
             _UniqueID = rnd.Next(1, 1000000);
-            _MsgNumber = 1;
+            _TurnInfoMessageNumber = 1;
+            _ResponseMessageNumber = 1;
+            _AdvertiseLobbyMessageNumber = 1;
+            _JoinLobbyMessageNumber = 1;
 
-            JoinGameMessages = new ConcurrentQueue<JoinGameMessage>();
             TurnInfoMessages = new ConcurrentQueue<TurnInfoMessage>();
             ResponseMessages = new ConcurrentQueue<ResponseMessage>();
+            AdvertiseLobbyMessages = new ConcurrentQueue<AdvertiseLobbyMessage>();
+            JoinLobbyMessages = new ConcurrentQueue<JoinLobbyMessage>();
 
             EventQueue = new ConcurrentQueue<EventInfo>();
 
@@ -46,81 +58,172 @@ namespace dsproject
 
         public LobbyInfo JoinGame(string name, int lobbySize, int interfaceIndex, string address, int port)
         {
-            LobbyInfo lobbyInfo = new LobbyInfo();
-
             _NetworkComms.JoinGroup(interfaceIndex, address, port);
             _NetworkComms.StartReceiving();
 
-            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
-            CancellationToken cancellationToken = cancellationTokenSource.Token;
+            _LobbyInfo = new LobbyInfo();
+            bool joinedLobby = false;
+            int hostID = 0;
 
-            Action action = () =>
+            bool lobbyAvailable = false;
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            while (sw.ElapsedMilliseconds < 2000)
             {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    JoinGameMessage msg = new JoinGameMessage() { Sender = _UniqueID, Name = name, LobbySize = lobbySize, MsgID = _MsgID };
-                    _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(msg));
-                    _MsgNumber++;
-
-                    //Don't spam messages
-                    Thread.Sleep(2000);
-                }
-            };
-
-            //Start JoinGameMessage sending loop
-            Task.Run(action);
-
-            //Add local player to lobby
-            PlayerInfo localPlayerInfo = new PlayerInfo { PlayerID = _UniqueID, PlayerName = name };
-            lobbyInfo.Players.Add(localPlayerInfo);
-
-            //Loop until lobby is full
-            while (lobbyInfo.Players.Count < lobbySize)
-            {
-                bool messageAvailable = JoinGameMessages.TryDequeue(out JoinGameMessage msg);
+                bool messageAvailable = AdvertiseLobbyMessages.TryDequeue(out AdvertiseLobbyMessage receivedMsg);
 
                 if (messageAvailable)
                 {
-                    //Check if JoinLobbyMessage was for the same lobby size
-                    if (msg.LobbySize == lobbySize)
+                    //Check if advertised lobby size matches
+                    if (receivedMsg.LobbySize == lobbySize)
                     {
-                        //Log message
-                        Debug.WriteLine("Received correct JoinGameMessage: " + JsonSerializer.Serialize(msg));
-
-                        bool newPlayer = true;
-
-                        //Check if player wanting to join is already in lobby
-                        foreach (PlayerInfo info in lobbyInfo.Players)
-                        {
-                            if (info.PlayerID == msg.Sender)
-                            {
-                                newPlayer = false;
-                            }
-                        }
-
-                        if (newPlayer)
-                        {
-                            PlayerInfo newPlayerInfo = new PlayerInfo { PlayerID = msg.Sender, PlayerName = msg.Name };
-                            lobbyInfo.Players.Add(newPlayerInfo);
-                            Debug.WriteLine("New player found and added to lobby: " + newPlayerInfo.ToString());
-                        }
+                        lobbyAvailable = true;
                     }
                 }
                 else
                 {
-                    //If no message found, sleep a bit
-                    Thread.Sleep(1000);
+                    Thread.Sleep(100);
                 }
             }
 
-            cancellationTokenSource.Cancel();
+            PlayerInfo localPlayerInfo = new PlayerInfo { PlayerID = _UniqueID, PlayerName = name };
+
+            if (lobbyAvailable)
+            {
+                //Try to join lobby that someone else is advertising
+                while (sw.ElapsedMilliseconds < 10000)
+                {
+                    bool messageAvailable = AdvertiseLobbyMessages.TryDequeue(out AdvertiseLobbyMessage receivedMsg);
+
+                    if (messageAvailable)
+                    {
+                        if (receivedMsg.Sender == hostID)
+                        {
+                            if (receivedMsg.LobbyInfo.Players.Count == lobbySize)
+                            {
+                                _LobbyInfo = receivedMsg.LobbyInfo;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            //Check if advertised lobby size matches
+                            if (receivedMsg.LobbySize == lobbySize)
+                            {
+                                //Log message
+                                Debug.WriteLine("Received correct AdvertiseLobbyMessages: " + JsonSerializer.Serialize(receivedMsg));
+
+                                //Check if we are already in lobby
+                                foreach (PlayerInfo info in receivedMsg.LobbyInfo.Players)
+                                {
+                                    if (info.PlayerID == _UniqueID)
+                                    {
+                                        joinedLobby = true;
+                                        hostID = receivedMsg.Sender;
+                                    }
+                                }
+
+                                if (joinedLobby == false)
+                                {
+                                    JoinLobbyMessage joinLobbyMessage = new JoinLobbyMessage()
+                                    {
+                                        Sender = _UniqueID,
+                                        MsgID = _JoinLobbyMessageID,
+                                        Name = name,
+                                        Receiver = receivedMsg.Sender
+                                    };
+
+                                    _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(joinLobbyMessage));
+                                    _JoinLobbyMessageNumber++;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Thread.Sleep(100);
+                    }
+                }
+
+            }
+            else
+            {
+                //Create own lobby          
+
+                //Add local player to lobby
+
+                _LobbyInfo.Players.Add(localPlayerInfo);
+
+                string advertiseLobbyMessageID = _AdvertiseLobbyMessageID;
+                _AdvertiseLobbyMessageNumber++;
+                AdvertiseLobbyMessage advertiseLobbyMessage = new AdvertiseLobbyMessage()
+                {
+                    Sender = _UniqueID,
+                    MsgID = advertiseLobbyMessageID,
+                    LobbySize = lobbySize,
+                    LobbyInfo = _LobbyInfo
+                };
+
+                byte[] advertiseLobbyMessageBytes = JsonSerializer.SerializeToUtf8Bytes(advertiseLobbyMessage);
+
+                //Advertise lobby until lobby full
+                while (_LobbyInfo.Players.Count < lobbySize)
+                {
+                    _NetworkComms.SendMessage(advertiseLobbyMessageBytes);
+
+                    Thread.Sleep(100);
+
+                    bool joinLobbyMessageAvailable;
+                    do
+                    {
+                        joinLobbyMessageAvailable = JoinLobbyMessages.TryDequeue(out JoinLobbyMessage joinLobbyMessage);
+
+                        if (joinLobbyMessageAvailable)
+                        {
+                            //Log message
+                            Debug.WriteLine("Received response to lobby advertise: " + JsonSerializer.Serialize(joinLobbyMessage));
+
+                            bool newPlayer = true;
+
+                            //Check if player wanting to join is already in lobby
+                            foreach (PlayerInfo info in _LobbyInfo.Players)
+                            {
+                                if (info.PlayerID == joinLobbyMessage.Sender)
+                                {
+                                    newPlayer = false;
+                                }
+                            }
+
+                            //Add new player to lobby
+                            if (newPlayer)
+                            {
+                                PlayerInfo newPlayerInfo = new PlayerInfo { PlayerID = joinLobbyMessage.Sender, PlayerName = joinLobbyMessage.Name };
+                                _LobbyInfo.Players.Add(newPlayerInfo);
+
+                                //Update lobbyInfo
+                                advertiseLobbyMessage.LobbyInfo = _LobbyInfo;
+                                advertiseLobbyMessageBytes = JsonSerializer.SerializeToUtf8Bytes(advertiseLobbyMessage);
+
+                                Debug.WriteLine("New player found and added to lobby: " + newPlayerInfo.ToString());
+                            }
+                        }
+
+                    } while (joinLobbyMessageAvailable);
+                }
+
+                for (int i = 0; i < 10; i++)
+                {
+                    _NetworkComms.SendMessage(advertiseLobbyMessageBytes);
+                    Thread.Sleep(200);
+                }
+            }
 
             //Sort player list so that first one has smallest ID
-            lobbyInfo.Players.Sort((PlayerInfo a, PlayerInfo b) => { return a.PlayerID.CompareTo(b.PlayerID); });
+            _LobbyInfo.Players.Sort((PlayerInfo a, PlayerInfo b) => { return a.PlayerID.CompareTo(b.PlayerID); });
 
             //Search smallest playerID
             int smallestPlayerID = int.MaxValue;
-            foreach (PlayerInfo info in lobbyInfo.Players)
+            foreach (PlayerInfo info in _LobbyInfo.Players)
             {
                 if (info.PlayerID < smallestPlayerID)
                 {
@@ -129,7 +232,7 @@ namespace dsproject
             }
 
             //Set smallest playerID player as a dealer
-            foreach (PlayerInfo info in lobbyInfo.Players)
+            foreach (PlayerInfo info in _LobbyInfo.Players)
             {
                 if (info.PlayerID == smallestPlayerID)
                 {
@@ -137,21 +240,17 @@ namespace dsproject
                 }
             }
 
-            // TODO
-            // VALIDATE LOBBY, send lobbyinfo to other and check that they have same
-
             Debug.WriteLine("Lobby is full");
             Debug.WriteLine("Players:");
-            foreach (PlayerInfo info in lobbyInfo.Players)
+            foreach (PlayerInfo info in _LobbyInfo.Players)
             {
                 Debug.WriteLine(info.ToString());
             }
             Debug.WriteLine("Initiating game...");
-            _GameState.InitGame(lobbyInfo.Players, localPlayerInfo, smallestPlayerID);
+            _GameState.InitGame(_LobbyInfo.Players, localPlayerInfo, smallestPlayerID);
             Debug.WriteLine("Initing ready");
 
-            _LobbyInfo = lobbyInfo;
-            return lobbyInfo;
+            return _LobbyInfo;
         }
 
         public LobbyInfo JoinGame(string name, int lobbySize, int interfaceIndex)
@@ -169,7 +268,9 @@ namespace dsproject
                 return;
             }
 
-            string msgID = _MsgID;
+            //Use same ID for all turnInfo messages for this turn
+            string msgID = _TurnInfoMessageID;
+            _TurnInfoMessageNumber++;
             TurnInfoMessage turnInfoMsg = new TurnInfoMessage { TurnInfo = turnInfo, Sender = _UniqueID, MsgID = msgID };
             byte[] turnInfoMsgBytes = JsonSerializer.SerializeToUtf8Bytes(turnInfoMsg);
 
@@ -266,9 +367,9 @@ namespace dsproject
                 Debug.WriteLine("Error processing turn info: " + receivedInfo.ErrorString);
             }
 
-            ResponseMessage response = new ResponseMessage() { Sender = _UniqueID, Receiver = msg.Sender, Approve = approved, ErrorString = receivedInfo.ErrorString, ReceivedMsgID = msg.MsgID, MsgID = _MsgID };
+            ResponseMessage response = new ResponseMessage() { Sender = _UniqueID, Receiver = msg.Sender, Approve = approved, ErrorString = receivedInfo.ErrorString, ReceivedMsgID = msg.MsgID, MsgID = _ResponseMessageID };
             _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(response));
-            _MsgNumber++;
+            _ResponseMessageNumber++;
         }
 
         private void MessageReceiver()
@@ -292,14 +393,30 @@ namespace dsproject
                     {
                         switch (msg.MsgType)
                         {
-                            case MessageType.JoinGame:
-                                JoinGameMessages.Enqueue(JsonSerializer.Deserialize<JoinGameMessage>(data));
-                                break;
                             case MessageType.TurnInfo:
                                 HandleTurnInfoMessage(JsonSerializer.Deserialize<TurnInfoMessage>(data));
                                 break;
                             case MessageType.Response:
-                                ResponseMessages.Enqueue(JsonSerializer.Deserialize<ResponseMessage>(data));
+                                ResponseMessage responseMessage = JsonSerializer.Deserialize<ResponseMessage>(data);
+
+                                //Only add message to queue if we are receiver
+                                if (responseMessage.Receiver == _UniqueID)
+                                {
+                                    ResponseMessages.Enqueue(responseMessage);
+                                }
+
+                                break;
+                            case MessageType.AdvertiseLobby:
+                                AdvertiseLobbyMessages.Enqueue(JsonSerializer.Deserialize<AdvertiseLobbyMessage>(data));
+                                break;
+                            case MessageType.JoinLobby:
+                                JoinLobbyMessage joinLobbyMessage = JsonSerializer.Deserialize<JoinLobbyMessage>(data);
+
+                                //Only add message to queue if we are receiver
+                                if (joinLobbyMessage.Receiver == _UniqueID)
+                                {
+                                    JoinLobbyMessages.Enqueue(joinLobbyMessage);
+                                }
                                 break;
                             default:
                                 Debug.WriteLine("Unknown message type: " + msg.MsgType);
