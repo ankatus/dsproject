@@ -65,8 +65,10 @@ namespace dsproject
             Stopwatch sw = new Stopwatch();
             _LobbyInfo = new LobbyInfo();
 
+            PlayerInfo localPlayerInfo = new PlayerInfo { PlayerID = _UniqueID, PlayerName = name };
+            _logger.Log("Local player: " + localPlayerInfo.ToString());
+            _logger.Log("Looking for available lobby with size " + lobbySize + "...");
             bool lobbyAvailable = false;
-            _logger.Log("Looking for available lobby...");
             sw.Start();
             //Look for other advertising their lobby and check if size matches
             while (sw.ElapsedMilliseconds < 2000)
@@ -88,12 +90,11 @@ namespace dsproject
             }
             sw.Reset();
 
-            PlayerInfo localPlayerInfo = new PlayerInfo { PlayerID = _UniqueID, PlayerName = name };
 
             if (lobbyAvailable)
             {
                 _logger.Log("Available lobby found, trying to join it...");
-                //Available lobby found, try to join it
+
                 int hostID = 0;
                 while (true)
                 {
@@ -143,7 +144,7 @@ namespace dsproject
                                     Receiver = receivedMsg.Sender
                                 };
 
-                                _logger.Log("Sent request to join lobby");
+                                _logger.Log("Sent request to join lobby, receiver: " + joinLobbyMessage.Receiver);
                                 _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(joinLobbyMessage));
                                 _JoinLobbyMessageNumber++;
                             }
@@ -158,9 +159,8 @@ namespace dsproject
             else
             {
                 _logger.Log("No available lobby found, creating own lobby...");
-                //Lobby not available
-                //Create own lobby          
 
+                //Add local player to lobby
                 _LobbyInfo.Players.Add(localPlayerInfo);
 
                 string advertiseLobbyMessageID = _AdvertiseLobbyMessageID;
@@ -191,7 +191,7 @@ namespace dsproject
                         if (joinLobbyMessageAvailable)
                         {
                             //Log message
-                            _logger.Log("Received response to lobby advertisement from " + joinLobbyMessage.Name + " " + joinLobbyMessage.Sender);
+                            _logger.Log("Received response to lobby advertisement from: Name: " + joinLobbyMessage.Name + ", ID: " + joinLobbyMessage.Sender);
 
                             //Check if player is already in lobby
                             if (IsThisPlayerInLobby(joinLobbyMessage.Sender) == false)
@@ -206,13 +206,15 @@ namespace dsproject
                                 //Serialize advertisement message
                                 advertiseLobbyMessageBytes = JsonSerializer.SerializeToUtf8Bytes(advertiseLobbyMessage);
 
-                                Debug.WriteLine("New player found and added to lobby: " + newPlayerInfo.ToString());
+                                _logger.Log("New player added to lobby: " + newPlayerInfo.ToString());
                             }
                         }
                     } while (joinLobbyMessageAvailable);
                 }
 
-                //Lobby is now full, send some extra advertisements so all other nodes realize that lobby is full
+                _logger.Log("Lobby is now full");
+
+                //Lobby is now full, send some extra advertisements so all other nodes realize for sure that lobby is full
                 for (int i = 0; i < 10; i++)
                 {
                     _NetworkComms.SendMessage(advertiseLobbyMessageBytes);
@@ -242,7 +244,6 @@ namespace dsproject
                 }
             }
 
-            _logger.Log("Local player: " + localPlayerInfo.ToString());
             _logger.Log("Players:");
             foreach (PlayerInfo info in _LobbyInfo.Players)
             {
@@ -261,7 +262,7 @@ namespace dsproject
         }
         public void EndTurn()
         {
-            Debug.WriteLine("Ending turn...");
+            _logger.Log("Ending turn...");
             TurnInfo turnInfo = _GameState.GetTurn();
 
             if (turnInfo == null)
@@ -302,7 +303,7 @@ namespace dsproject
                     if (response.ReceivedMsgID != msgID) { Debug.WriteLine("Receive msg error: message ID did not match"); continue; }
 
                     //Log message
-                    Debug.WriteLine("Received response to turn info message: " + JsonSerializer.Serialize(response));
+                    _logger.Log("Received response to turn info message from " + response.Sender);
 
                     //Check if this player is in lobby
                     if (IsThisPlayerInLobby(response.Sender) == false) { Debug.WriteLine("Receive msg error: player not in lobby"); continue; }
@@ -313,7 +314,7 @@ namespace dsproject
                     //Check if this player has already approved turn
                     if (ApprovedPlayers.Contains(response.Sender) == true) { Debug.WriteLine("Error: player has already approved turn"); continue; }
 
-                    Debug.WriteLine("Received response approved turn");
+                    _logger.Log("Other player approved turn, PlayerID: " + response.Sender);
                     ApprovedPlayers.Add(response.Sender);
 
                     //Check if it was last required approvement
@@ -322,7 +323,6 @@ namespace dsproject
 
                 if (ApprovedPlayers.Count == requiredNumberOfPlayerApprovals)
                 {
-                    Debug.WriteLine("Turn approved");
                     turnApproved = true;
                     break;
                 }
@@ -331,15 +331,13 @@ namespace dsproject
             if (turnApproved)
             {
                 //All good
-                Debug.WriteLine("Ending turn finished");
+                _logger.Log("Turn ended successfully");
                 //Clear unnessary responses
                 ResponseMessages.Clear();
             }
             else
             {
-                // Add something to event queue?
-                // return false?
-                Debug.WriteLine("Ending turn FAILED, did not receive approvement from other players");
+                _logger.Log("Ending turn FAILED, did not receive approvement from other players");
             }
         }
 
@@ -358,20 +356,26 @@ namespace dsproject
 
         private void HandleTurnInfoMessage(TurnInfoMessage msg)
         {
-            Debug.WriteLine("Received turn info message from other player: " + JsonSerializer.Serialize(msg));
+            _logger.Log("Received turn info message from other player: " + JsonSerializer.Serialize(msg));
 
             StateUpdateInfo receivedInfo = _GameState.Update(msg.TurnInfo);
 
             bool approved = receivedInfo.Result == StateUpdateResult.Ok;
 
-            if (approved == false)
+            if (approved)
             {
+                _logger.Log("Received turn info message approved");
+            }
+            else
+            {
+                _logger.Log("Error processing turn info: " + receivedInfo.ErrorString);
                 Debug.WriteLine("Error processing turn info: " + receivedInfo.ErrorString);
             }
 
             ResponseMessage response = new ResponseMessage() { Sender = _UniqueID, Receiver = msg.Sender, Approve = approved, ErrorString = receivedInfo.ErrorString, ReceivedMsgID = msg.MsgID, MsgID = _ResponseMessageID };
             _NetworkComms.SendMessage(JsonSerializer.SerializeToUtf8Bytes(response));
             _ResponseMessageNumber++;
+
         }
 
         private void MessageReceiver()
@@ -428,11 +432,6 @@ namespace dsproject
                     }
                 }
             }
-        }
-
-        public void ExitGame()
-        {
-            throw new NotImplementedException();
         }
     }
 }
