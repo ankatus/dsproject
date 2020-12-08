@@ -10,14 +10,14 @@ A console-based Uno-game following the rules found on [Wikipedia](https://en.wik
 ### Installation
 #### Windows
 1. Make sure the .[NET 5.0 runtime](https://dotnet.microsoft.com/download/dotnet/current/runtime) is installed
-2. Download the .exe
-3. Launch the .exe
+2. Download the [release](https://github.com/ankatus/dsproject/releases/)
+3. Launch the .exe. If you move the .exe from the release folder, make sure to move the "dsproject.runtimeconfig.json" file with it.
 
 #### Linux
 1. Make sure the .[NET 5.0 runtime](https://dotnet.microsoft.com/download/dotnet/current/runtime) is installed
-2. Download the .dll
+2. Download the [release](https://github.com/ankatus/dsproject/releases/)
 3. Make sure your terminal is at least 150 columns wide and 50 columns high
-3. Run the .dll using dotnet
+4. Run the .dll using dotnet (```dotnet dsproject.dll```). If you move the .dll from the release folder, make sure to move the "dsproject.runtimeconfig.json" file with it.
 
 ### Joining a game
 1. Input your display name when prompted
