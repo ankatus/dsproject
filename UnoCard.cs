@@ -4,13 +4,9 @@ namespace dsproject
 {
     internal class UnoCard
     {
-        public CardType Type { get; }
-        public CardColor Color { get; }
-        public int Number { get; }
-
-        public UnoCard(CardType type) : this(type, CardColor.Blue, 0)
-        {
-        }
+        public CardType Type { get; set; }
+        public CardColor Color { get; set; }
+        public int Number { get; init; }
 
         public UnoCard(CardType type, CardColor color, int number)
         {
@@ -27,6 +23,9 @@ namespace dsproject
             Color = source.Color;
             Number = source.Number;
         }
+
+        // For JSON-deserialization
+        public UnoCard() {}
 
         public char[][] GetGraphic()
         {
@@ -69,7 +68,7 @@ namespace dsproject
 
     internal enum CardColor
     {
-        Red, Yellow, Green, Blue
+        Red, Yellow, Green, Blue, White
     }
 
 }

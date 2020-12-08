@@ -25,13 +25,15 @@ namespace dsproject
                 CardColor.Yellow => ConsoleColor.Yellow,
                 CardColor.Green => ConsoleColor.Green,
                 CardColor.Blue => ConsoleColor.Blue,
+                CardColor.White => ConsoleColor.White,
                 _ => throw new ArgumentOutOfRangeException(nameof(cardColor), cardColor, null)
             };
         }
 
         internal static IEnumerable<T> ShuffleList<T>(IEnumerable<T> shufflee, int seed)
         {
-            return shufflee.OrderBy(_ => new Random(seed).Next()).ToList();
+            var random = new Random(seed);
+            return shufflee.OrderBy(_ => random.Next()).ToList();
         }
     }
 }

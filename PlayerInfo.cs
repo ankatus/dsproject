@@ -13,5 +13,10 @@ namespace dsproject
         {
             Hand = new List<UnoCard>();
         }
+
+        public override string ToString()
+        {
+            return "Name: " + PlayerName + ", ID: " + PlayerID + ((Dealer == true) ? " (Dealer)" : "");
+        }
     }
 }

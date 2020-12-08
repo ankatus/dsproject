@@ -8,28 +8,19 @@ namespace dsproject
 {
     internal enum MessageType
     {
-        JoinGame = 1,
-        TurnInfo = 2,
-        Response = 3
+        TurnInfo = 1,
+        Response = 2,
+        AdvertiseLobby = 3,
+        JoinLobby = 4
     }
 
     internal class Message
     {
         public MessageType MsgType { get; set; }
         public int Sender { get; set; }
-        public DateTime TimeStamp { get; set; }
+        public string MsgID { get; set; }
     }
 
-    internal class JoinGameMessage : Message
-    {
-        public string Name { get; set; }
-        public int LobbySize { get; set; }
-
-        public JoinGameMessage()
-        {
-            MsgType = MessageType.JoinGame;
-        }    
-    }
 
     internal class TurnInfoMessage : Message
     {
@@ -44,11 +35,35 @@ namespace dsproject
     internal class ResponseMessage : Message
     {
         public int Receiver { get; set; }
+        public string ReceivedMsgID { get; set; }
         public bool Approve { get; set; }
+        public string ErrorString { get; set; }
 
         public ResponseMessage()
         {
             MsgType = MessageType.Response;
+        }
+    }
+
+    internal class AdvertiseLobbyMessage : Message
+    {
+        public int LobbySize { get; set; }
+        public LobbyInfo LobbyInfo { get; set; }
+
+        public AdvertiseLobbyMessage()
+        {
+            MsgType = MessageType.AdvertiseLobby;
+        }
+    }
+
+    internal class JoinLobbyMessage : Message
+    {
+        public string Name { get; set; }
+        public int Receiver { get; set; }
+
+        public JoinLobbyMessage()
+        {
+            MsgType = MessageType.JoinLobby;
         }
     }
 }
