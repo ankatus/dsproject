@@ -47,7 +47,7 @@ namespace dsproject
             }
             else
             {
-                throw new NotImplementedException("Display not implemented for non-windows OSs");
+                // throw new NotImplementedException("Display not implemented for non-windows OSs");
             }
         }
 
