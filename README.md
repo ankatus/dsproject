@@ -28,3 +28,6 @@ A console-based Uno-game following the rules found on [Wikipedia](https://en.wik
 
 ### Playing the game
 Follow the instructions on the screen. Left and right arrow keys scroll through your hand if you have more than five cards
+
+## Other stuff
+* A log file is created in the same directory that the application .exe or .dll is in.
